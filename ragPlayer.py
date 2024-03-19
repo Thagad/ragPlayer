@@ -24,6 +24,7 @@ class rag_ui:
         self.paused = False
         self.song_directory = os.getcwd()  # Default song directory
         self.downloading = False  # Flag to track if downloading is in progress
+        self.running = True
 
         # Build UI
         self.mainwindow = tk.Tk() if master is None else tk.Toplevel(master)
@@ -159,6 +160,7 @@ class rag_ui:
 
         self.volume_panel.pack(side="top")
         self.frame_main.pack(side="top")
+        self.mainwindow.protocol("WM_DELETE_WINDOW", self.close_window)
 
         # Main widget
         self.shuffle_on = True
@@ -259,8 +261,8 @@ class rag_ui:
 
     def download_spotify_audio(self, track_id):
         try:
-            client_credentials_manager = SpotifyClientCredentials(client_id='YOUR_CLIENT_ID',
-                                                              client_secret='YOUR_CLIENT_SECRET')
+            client_credentials_manager = SpotifyClientCredentials(client_id='FILL',
+                                                              client_secret='FILL')
             sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
             track = sp.track(track_id)
@@ -385,10 +387,14 @@ class rag_ui:
     def set_volume(self, val):
         volume = float(val) / 100
         pygame.mixer.music.set_volume(volume)
+        
+    def close_window(self):
+        self.running = False  # Update the flag when the window is closed
+        self.mainwindow.destroy()  # Destroy the main window
 
         
     def get_time(self):
-        if self.mainwindow.winfo_exists():  # Check if the main window still exists
+        if self.running:  # Check if the application is still running
             current_time = pygame.mixer.music.get_pos() / 1000
             formatted_time = time.strftime("%H:%M:%S", time.gmtime(current_time))
 
