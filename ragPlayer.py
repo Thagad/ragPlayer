@@ -30,6 +30,7 @@ class rag_ui:
         self.mainwindow = tk.Tk() if master is None else tk.Toplevel(master)
         self.mainwindow.configure(height=500, width=400)
         self.mainwindow.resizable(False, False)
+        self.mainwindow.title("ragPlayer")
 
         self.frame_main = ttk.Frame(self.mainwindow, name="frame_main")
         self.frame_main.configure(height=500, width=400)
@@ -46,19 +47,19 @@ class rag_ui:
         self.url_label.configure(
             font="{BigNoodleTitling} 14 {}",
             text='Song Url:')
-        self.url_label.pack(side="left")
+        self.url_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
 
         self.url_entry = ttk.Entry(self.download_frame, name="url_entry")
         self.url_entry.configure(font="{BigNoodleTitling} 12 {}")
-        self.url_entry.pack(side="left")
-
-        self.button4 = ttk.Button(self.download_frame, name="button4")
-        self.button4.configure(style="Toolbutton", text='𝗥𝗮𝗴 𝗶𝘁', command=self.download_song)
-        self.button4.pack(side="left")
+        self.url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
 
         self.download_status_label = ttk.Label(self.download_frame, name="download_status_label")
         self.download_status_label.configure(text="", foreground="red")
-        self.download_status_label.pack(side="top")
+        self.download_status_label.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="we")
+
+        self.button4 = ttk.Button(self.download_frame, name="button4")
+        self.button4.configure(style="Toolbutton", text='𝗥𝗮𝗴 𝗶𝘁', command=self.download_song)
+        self.button4.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
 
         self.download_frame.pack(side="top", pady=10)
 
@@ -195,7 +196,7 @@ class rag_ui:
         if os.path.exists(self.song_directory):
             os.startfile(self.song_directory)
         else:
-            messagebox.showwarning("Warning", "Song directory does not exist!")
+            messagebox.showwarning("Warning", "𝗦𝗼𝗻𝗴 𝗱𝗶𝗿𝗲𝗰𝘁𝗼𝗿𝘆 𝗱𝗼𝗲𝘀 𝗻𝗼𝘁 𝗲𝘅𝗶𝘀𝘁!")
 
     def change_location(self):
         new_location = filedialog.askdirectory()
@@ -213,7 +214,7 @@ class rag_ui:
             self.update_download_status()  # Update download status label
             self.frame_main.after(1000, lambda: self.start_download(url, source))  # Schedule download after 1 second
         else:
-            messagebox.showwarning("Warning", "Unsupported URL")
+            messagebox.showwarning("Warning", "𝗨𝗻𝘀𝘂𝗽𝗽𝗼𝗿𝘁𝗲𝗱 𝗨𝗥𝗟! 𝗣𝗿𝗼𝗴𝗿𝗮𝗺 𝗶𝘀 𝗺𝗮𝗱𝗲 𝘁𝗼 𝘄𝗼𝗿𝗸 𝘄𝗶𝘁𝗵 𝘆𝗼𝘂𝘁𝘂𝗯𝗲, 𝘀𝗽𝗼𝘁𝗶𝗳𝘆 𝗮𝗻𝗱 𝘀𝗼𝘂𝗻𝗱𝗰𝗹𝗼𝘂𝗱 𝗹𝗶𝗻𝗸𝘀.")
 
 
     def start_download(self, url, source):
@@ -247,14 +248,14 @@ class rag_ui:
             }
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([song_url])
-            messagebox.showinfo("Download", "Song/playlist downloaded successfully!")
+            messagebox.showinfo("Download", "𝗥𝗮𝗴𝗴𝗲𝗱 𝘁𝗵𝗲 𝗺𝘂𝘀𝗶𝗰 𝘀𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆!")
             self.downloading = False
             self.update_download_status()
             self.update_playlist()
         except youtube_dl.utils.DownloadError as e:
-            messagebox.showwarning("Warning", "Contains unavailable videos!")
+            messagebox.showwarning("Warning", "𝗖𝗼𝗻𝘁𝗮𝗶𝗻𝘀 𝘂𝗻𝗮𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝘃𝗶𝗱𝗲𝗼𝘀!")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
+            messagebox.showerror("Error", f"𝗙𝗮𝗶𝗹𝗲𝗱 𝘁𝗼 𝗱𝗼𝘄𝗻𝗹𝗼𝗮𝗱 𝘀𝗼𝗻𝗴𝘀: {str(e)}")
         finally:
             self.downloading = False  # Reset downloading flag
             self.update_download_status()
@@ -271,12 +272,12 @@ class rag_ui:
 
             self.search_and_download_youtube(title, artist)
 
-            messagebox.showinfo("Download", f"Song '{title}' downloaded successfully!")
+            messagebox.showinfo("Download", f"𝗦𝗼𝗻𝗴 '{title}' 𝗿𝗮𝗴𝗴𝗲𝗱 𝘀𝘂𝗰𝗰𝗲𝘀𝗳𝘂𝗹𝘆!")
             self.downloading = False
             self.update_download_status()
             self.update_playlist()
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to download song: {str(e)}")
+            messagebox.showerror("Error", f"𝗙𝗮𝗶𝗹𝗲𝗱 𝘁𝗼 𝗿𝗮𝗴 𝘀𝗼𝗻𝗴: {str(e)}")
 
     def download_soundcloud_audio(self, url):
         try:
@@ -306,12 +307,12 @@ class rag_ui:
             with open(os.path.join(self.song_directory, f'{title}.mp3'), 'wb') as fp:
                 fp.write(requests.get(audio_url, stream=True).content)
 
-            messagebox.showinfo("Download", f"Song '{title}' downloaded successfully!")
+            messagebox.showinfo("Download", f"𝗦𝗼𝗻𝗴 '{title}' 𝗿𝗮𝗴𝗴𝗲𝗱 𝘀𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆!")
             self.downloading = False
             self.update_download_status()
             self.update_playlist()
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to download song: {str(e)}")
+            messagebox.showerror("Error", f"𝗙𝗮𝗶𝗹𝗲𝗱 𝘁𝗼 𝗿𝗮𝗴 𝘀𝗼𝗻𝗴: {str(e)}")
 
     def search_and_download_youtube(self, title, artist):
         query = f'"{title}" "{artist}"'
