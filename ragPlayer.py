@@ -17,7 +17,7 @@ import random
 import threading
 import re
 import eyed3
-from PIL import Image
+from PIL import Image, ImageTk
 import base64
 from tkinter import PhotoImage
 
@@ -143,6 +143,9 @@ class rag_ui:
         self.volume_panel = ttk.Frame(
             self.frame_main, name="volume_panel")
         self.volume_panel.configure(height=200, width=200)
+        self.album_art = PhotoImage(file=os.path.join(self.song_directory, "default_image.png")) 
+        self.album_art_label = ttk.Label(self.volume_panel, name="album_art_label", image=self.album_art)
+        self.album_art_label.pack(side="top")
 
         self.scale1 = ttk.Scale(self.volume_panel)
         self.scale1.configure(length=150, orient="horizontal", from_= 0, to=50, command=self.set_volume)
@@ -175,6 +178,32 @@ class rag_ui:
         self.shuffle_on = True
 
         self.mainwindow.mainloop()
+
+    def extract_album_art(self, mp3_path):
+        try:
+            audio = ID3(mp3_path)
+            if audio.getall('APIC'):
+                print("Album art found in the MP3 file.")
+                for tag in audio.getall('APIC'):
+                    # Extract album art data
+                    image_data = tag.data
+                    # Generate a filename based on the MP3 file's name
+                    mp3_filename = os.path.basename(mp3_path)
+                    album_art_filename = os.path.splitext(mp3_filename)[0] + "_album_art.png"
+                    # Write image data to the generated filename
+                    with open(album_art_filename, "wb") as img_file:
+                        img_file.write(image_data)
+                    return album_art_filename  # Return the generated filename for the extracted image
+            else:
+                print("No album art found in the MP3 file.")
+                return None  # Return None if no album art tag is found
+        except Exception as e:
+            print(f"Error extracting album art: {e}")
+            return None  # Return None if an error occurs during extraction
+    
+    def update_album_art(self, img_path):
+        self.album_art_label.config(image=self.album_art)
+        self.album_art_label.image = self.album_art
         
     def clear_url(self):
         self.url_entry.delete(0, tk.END)
@@ -270,7 +299,8 @@ class rag_ui:
                 'outtmpl': os.path.join(self.song_directory, '%(title)s.%(ext)s'),  # Save to current directory
                 'progress_hooks': [progress_hook],
                 'skip_unavailable_fragments': True,
-                'writethumbnail': True,  # Write video thumbnail
+                'writethumbnail': True,  # Write video thumbnail,
+                'ignoreerrors' : True
             }
 
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
@@ -342,39 +372,52 @@ class rag_ui:
         except Exception as e:
             messagebox.showerror("Error", f"𝗙𝗮𝗶𝗹𝗲𝗱 𝘁𝗼 𝗿𝗮𝗴 𝘀𝗼𝗻𝗴: {str(e)}")
 
-    def download_soundcloud_audio(self, url):
+    def download_soundcloud_audio(self, song_url):
         try:
-            # Get track name
-            filename = subprocess.check_output(['youtube-dl', '--get-filename', url]).decode('UTF-8').rstrip('\n')
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'postprocessors': [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '320',
+                }],
+                'outtmpl': os.path.join(self.song_directory, '%(title)s.%(ext)s'),  # Save to current directory
+                'writethumbnail': True,  # Write embedded thumbnail,
+                'ignoreerrors' : True
+            }
 
-            # Download json file
-            subprocess.call(['youtube-dl', '--write-info-json', '--skip-download', url])
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                            result = ydl.extract_info(song_url, download=True)  # Download video with thumbnail
+                            mp3_path = os.path.join(self.song_directory, f"{result['title']}.mp3")
+                            thumbnail_path_jpg = os.path.join(self.song_directory, f"{result['title']}.jpg")
+                            png_path = os.path.join(self.song_directory, f"{result['title']}.png")
 
-            # Open json file
-            json_files = [pos_json for pos_json in os.listdir(os.path.dirname(os.path.realpath('__file__'))) if
-                        pos_json.endswith('.json')]
+                            # Jpg to Png
+                            im = Image.open(thumbnail_path_jpg).convert("RGB")
+                            png_path = os.path.join(self.song_directory, f"{result['title']}.png")
+                            im.save(png_path, "PNG")
 
-            # Read json file
-            with open(json_files[0], 'r') as fp:
-                data = json.load(fp)
+                            # Create an AudioFile object
+                            audiofile = MP3(mp3_path, ID3=ID3)
+                            audiofile.add_tags()
 
-            # Extract data from json
-            audio_url = data['url']
-            title = data['fulltitle']
+                            # Set the album art
+                            with open(png_path, "rb") as img_file:
+                                img_data = img_file.read()
+                                audiofile.tags.add(APIC(3, 'image/png', 3, 'Front cover', img_data))
 
-            # Remove json file after extracting necessary information
-            json_path = os.path.join(os.path.dirname(os.path.realpath('__file__')), json_files[0])
-            os.remove(json_path)
+                            # Save changes to the MP3 file
+                            audiofile.save(v2_version=3)
 
-            # Download music
-            with open(os.path.join(self.song_directory, f'{title}.mp3'), 'wb') as fp:
-                fp.write(requests.get(audio_url, stream=True).content)
+                            # Remove PNG thumbnail file
+                            os.remove(png_path)
+                            os.remove(thumbnail_path_jpg)
 
-            self.downloading = False
-            self.update_download_status("Song ragged successfuly!")
-            self.update_playlist()
         except Exception as e:
-            messagebox.showerror("Error", f"𝗙𝗮𝗶𝗹𝗲𝗱 𝘁𝗼 𝗿𝗮𝗴 𝘀𝗼𝗻𝗴: {str(e)}")
+                        messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
+        finally:
+                        self.populate_playlist()
+                        self.downloading = False  # Reset downloading flag
 
     def search_and_download_youtube(self, title, artist):
         query = f'"{title}" "{artist}"'
@@ -396,6 +439,23 @@ class rag_ui:
         if selected_index:
             self.current_index = selected_index[0]
             self.current_song = self.playlist[self.current_index]
+            mp3_path = os.path.join(self.song_directory, self.current_song)
+            
+            # Extract album art from MP3 file
+            album_art_path = self.extract_album_art(mp3_path)
+            if album_art_path:
+                # Open the extracted image
+                img = Image.open(album_art_path)
+                # Resize the image to fit the label if needed
+                img = img.resize((250, 250), resample=Image.LANCZOS)  # Adjust desired_width and desired_height as needed
+                # Convert the image to Tkinter PhotoImage
+                self.album_art = ImageTk.PhotoImage(img)
+                # Update the album art label
+                self.album_art_label.config(image=self.album_art)
+                self.album_art_label.image = self.album_art
+            else:
+                # Use default image if no embedded image found
+                self.update_album_art(os.path.join(self.song_directory, "default_image.png"))  # Replace "path_to_default_image.png" with your default image path
             pygame.mixer.music.load(os.path.join(self.song_directory, self.current_song))
             pygame.mixer.music.play()
 
