@@ -1,6 +1,7 @@
 import tkinter as tk
-import tkinter.ttk as ttk
+#import tkinter.ttk as ttk
 from tkinter import messagebox, filedialog
+import ttkbootstrap as ttk
 import os
 import yt_dlp as youtube_dl
 import spotipy
@@ -12,6 +13,8 @@ import pygame
 from mutagen.mp3 import MP3
 import time
 import random
+import threading
+import re
 
 class rag_ui:
     def __init__(self, master=None):
@@ -27,7 +30,7 @@ class rag_ui:
         self.running = True
 
         # Build UI
-        self.mainwindow = tk.Tk() if master is None else tk.Toplevel(master)
+        self.mainwindow = ttk.Window(themename='ragard_dark') if master is None else tk.Toplevel(master)
         self.mainwindow.configure(height=500, width=400)
         self.mainwindow.resizable(False, False)
         self.mainwindow.title("ragPlayer")
@@ -54,12 +57,17 @@ class rag_ui:
         self.url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
 
         self.download_status_label = ttk.Label(self.download_frame, name="download_status_label")
-        self.download_status_label.configure(text="", foreground="red")
+        self.download_status_label.configure(text="", foreground="red", font="{BigNoodleTitling} 12 {}")
         self.download_status_label.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="we")
 
         self.button4 = ttk.Button(self.download_frame, name="button4")
-        self.button4.configure(style="Toolbutton", text='𝗥𝗮𝗴 𝗶𝘁', command=self.download_song)
-        self.button4.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+        self.button4.configure(text='𝗥𝗮𝗴 𝗶𝘁', command=self.download_song, width=6)  # Adjusted width
+        self.button4.grid(row=2, column=0, padx=(10, 5), sticky="ew")
+
+        # Add the new button next to the "Rag it" button
+        self.clear_url_button = ttk.Button(self.download_frame, name="clear_url_button")
+        self.clear_url_button.configure(text='𝗖𝗹𝗲𝗮𝗿', command=self.clear_url, width=6)  # Adjusted width
+        self.clear_url_button.grid(row=2, column=1, padx=(5, 10), sticky="ew")
 
         self.download_frame.pack(side="top", pady=10)
 
@@ -77,9 +85,9 @@ class rag_ui:
         self.change_location_button.pack(side="right", padx=5)
         self.change_location_button.config(width=5)  # Set button width
 
-        self.folder_frame.pack(side="top", pady=10)
+        self.folder_frame.pack(side="top")
 
-        self.playlist_frame = tk.LabelFrame(
+        self.playlist_frame = tk.Frame(
             self.frame_main, name="playlist_frame")
         self.playlist_frame.configure(height=200, width=200)
 
@@ -91,33 +99,33 @@ class rag_ui:
         self.playlist_label.pack(side="top")
 
         self.listbox = tk.Listbox(self.playlist_frame, name="listbox")
-        self.listbox.configure(font="{Arial} 12 {}", width=50)  # Adjust width as needed
+        self.listbox.configure(font="{BigNoodleTitling} 14 {}", width=70)  # Adjust width as needed
         self.listbox.pack(side="top", fill="both", expand=True)
         self.populate_playlist()  # Populate playlist initially
         self.listbox.bind("<<ListboxSelect>>", self.play_selected_song)  # Bind selection event to play_selected_song
 
-        self.playlist_frame.pack(side="top")
+        self.playlist_frame.pack(side="top", pady= 20)
 
-        self.button_frame = ttk.Labelframe(
+        self.button_frame = ttk.Frame(
             self.frame_main, name="button_frame")
         self.button_frame.configure(height=100, width=100)
-
+        
         self.previous_button = ttk.Button(
             self.button_frame, name="previous_button")
         self.previous_button.configure(text='⏮', command=self.previous_song)
-        self.previous_button.pack(side="left")
+        self.previous_button.pack(side="left", padx= 5)
 
         self.play_button = ttk.Button(self.button_frame, name="play_button")
         self.play_button.configure(text='✔', command=self.play_song)
-        self.play_button.pack(side="left")
+        self.play_button.pack(side="left", padx= 5)
 
         self.next_button = ttk.Button(self.button_frame, name="next_button")
         self.next_button.configure(text='⏭', command=self.next_song)
-        self.next_button.pack(side="right")
+        self.next_button.pack(side="right", padx= 5)
 
         self.pause_unpause_button = ttk.Button(self.button_frame, name="pause_unpause_button")
         self.pause_unpause_button.configure(text='⏸', command=self.pause_unpause_song)
-        self.pause_unpause_button.pack(side="right")
+        self.pause_unpause_button.pack(side="right", padx= 5)
 
         self.shuffle_mode = tk.BooleanVar()  # Variable to track shuffle mode
         self.shuffle_mode.set(True)
@@ -125,21 +133,16 @@ class rag_ui:
         self.shuffle_button.configure(text='𝘀𝗵𝘂𝗳𝗳𝗹𝗲', variable=self.shuffle_mode, command=self.toggle_shuffle)
         self.shuffle_button.pack(side="right")
 
-        self.button_frame.pack(side="top")
+        self.button_frame.pack(side="top", pady=5)
 
-        self.volume_panel = ttk.Labelframe(
+        self.volume_panel = ttk.Frame(
             self.frame_main, name="volume_panel")
         self.volume_panel.configure(height=200, width=200)
 
-        self.volume_label = ttk.Label(self.volume_panel, name="volume_label")
-        self.volume_label.configure(
-            font="{BigNoodleTitling} 14 {}", text='Volume')
-        self.volume_label.pack(side="top")
-
         self.scale1 = ttk.Scale(self.volume_panel)
-        self.scale1.configure(length=250, orient="horizontal", from_= 0, to=100, command=self.set_volume)
-        self.scale1.set(10)
-        self.scale1.pack(side="top")
+        self.scale1.configure(length=150, orient="horizontal", from_= 0, to=50, command=self.set_volume)
+        self.scale1.set(25)
+        self.scale1.pack(side="top", pady=20)
 
         self.progressbar = ttk.Progressbar(
             self.volume_panel, name="progressbar")
@@ -150,12 +153,12 @@ class rag_ui:
             self.volume_panel, name="progressbar_label")
         self.progressbar_label.configure(
             font="{BigNoodleTitling} 14 {}",
-            text='00:00:00 / 00:00:00')
+            text='00:00 / 00:00')
         self.progressbar_label.pack(side="top")
 
         self.song_label = ttk.Label(self.volume_panel, name="song_label")
-        self.song_label.configure(font="{BigNoodleTitling} 14 {}", text='Now playing: ')
-        self.song_label.pack(side="top")
+        self.song_label.configure(width=60, font="{BigNoodleTitling} 16 {}", text='Now playing: ')
+        self.song_label.pack(side="top", pady= 20)
 
         self.get_time()  # Start updating the time and progress bar
 
@@ -167,6 +170,9 @@ class rag_ui:
         self.shuffle_on = True
 
         self.mainwindow.mainloop()
+        
+    def clear_url(self):
+        self.url_entry.delete(0, tk.END)
 
     def toggle_shuffle(self):
         if not self.shuffle_on:
@@ -176,11 +182,8 @@ class rag_ui:
             self.shuffle_on = False
             self.shuffle_mode.set(False)
             
-    def update_download_status(self):
-        if self.downloading:
-            self.download_status_label.config(text="𝗥𝗮𝗴𝗴𝗶𝗻𝗴 𝘁𝗵𝗲 𝘀𝗼𝗻𝗴𝘀 𝗳𝗿𝗼𝗺 𝘁𝗵𝗲 𝘄𝗲𝗯...", foreground="red")
-        else:
-            self.download_status_label.config(text="", foreground="red")
+    def update_download_status(self, message):
+        self.download_status_label.config(text=message, foreground="red")
 
     def populate_playlist(self):
         self.listbox.delete(0, tk.END)  # Clear the listbox
@@ -211,8 +214,9 @@ class rag_ui:
         source = self.detect_source(url)
         if source in ["YouTube", "Spotify", "SoundCloud"]:
             self.downloading = True  # Set downloading flag
-            self.update_download_status()  # Update download status label
-            self.frame_main.after(1000, lambda: self.start_download(url, source))  # Schedule download after 1 second
+            # Start downloading in a separate thread
+            download_thread = threading.Thread(target=self.start_download, args=(url, source))
+            download_thread.start()
         else:
             messagebox.showwarning("Warning", "𝗨𝗻𝘀𝘂𝗽𝗽𝗼𝗿𝘁𝗲𝗱 𝗨𝗥𝗟! 𝗣𝗿𝗼𝗴𝗿𝗮𝗺 𝗶𝘀 𝗺𝗮𝗱𝗲 𝘁𝗼 𝘄𝗼𝗿𝗸 𝘄𝗶𝘁𝗵 𝘆𝗼𝘂𝘁𝘂𝗯𝗲, 𝘀𝗽𝗼𝘁𝗶𝗳𝘆 𝗮𝗻𝗱 𝘀𝗼𝘂𝗻𝗱𝗰𝗹𝗼𝘂𝗱 𝗹𝗶𝗻𝗸𝘀.")
 
@@ -234,9 +238,22 @@ class rag_ui:
             return "SoundCloud"
         else:
             return None
-
+                
     def download_youtube_audio(self, song_url):
         try:
+            def progress_hook(d):
+                if d['status'] == 'downloading':
+                    percent = d.get('_percent_str', '').strip()
+                    speed = d.get('_speed_str', '').strip()
+
+                    # Remove ANSI escape codes using regular expressions
+                    percent = re.sub(r'\x1b\[[0-9;]*[mG]', '', percent)
+                    speed = re.sub(r'\x1b\[[0-9;]*[mG]', '', speed)
+
+                    # Format the progress message with percentage downloaded and download speed
+                    message = f"[Ragging] {percent} {speed}"
+                    self.update_download_status(message)
+                    
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'postprocessors': [{
@@ -245,20 +262,16 @@ class rag_ui:
                     'preferredquality': '320',
                 }],
                 'outtmpl': os.path.join(self.song_directory, '%(title)s.%(ext)s'),  # Save to current directory
+                'progress_hooks': [progress_hook],
+                'skip_unavailable_fragments': True
             }
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([song_url])
-            messagebox.showinfo("Download", "𝗥𝗮𝗴𝗴𝗲𝗱 𝘁𝗵𝗲 𝗺𝘂𝘀𝗶𝗰 𝘀𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆!")
-            self.downloading = False
-            self.update_download_status()
-            self.update_playlist()
-        except youtube_dl.utils.DownloadError as e:
-            messagebox.showwarning("Warning", "𝗖𝗼𝗻𝘁𝗮𝗶𝗻𝘀 𝘂𝗻𝗮𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲 𝘃𝗶𝗱𝗲𝗼𝘀!")
         except Exception as e:
-            messagebox.showerror("Error", f"𝗙𝗮𝗶𝗹𝗲𝗱 𝘁𝗼 𝗱𝗼𝘄𝗻𝗹𝗼𝗮𝗱 𝘀𝗼𝗻𝗴𝘀: {str(e)}")
+            messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
         finally:
             self.downloading = False  # Reset downloading flag
-            self.update_download_status()
+
 
     def download_spotify_audio(self, track_id):
         try:
@@ -272,9 +285,8 @@ class rag_ui:
 
             self.search_and_download_youtube(title, artist)
 
-            messagebox.showinfo("Download", f"𝗦𝗼𝗻𝗴 '{title}' 𝗿𝗮𝗴𝗴𝗲𝗱 𝘀𝘂𝗰𝗰𝗲𝘀𝗳𝘂𝗹𝘆!")
             self.downloading = False
-            self.update_download_status()
+            self.update_download_status("Song ragged successfuly!")
             self.update_playlist()
         except Exception as e:
             messagebox.showerror("Error", f"𝗙𝗮𝗶𝗹𝗲𝗱 𝘁𝗼 𝗿𝗮𝗴 𝘀𝗼𝗻𝗴: {str(e)}")
@@ -307,9 +319,8 @@ class rag_ui:
             with open(os.path.join(self.song_directory, f'{title}.mp3'), 'wb') as fp:
                 fp.write(requests.get(audio_url, stream=True).content)
 
-            messagebox.showinfo("Download", f"𝗦𝗼𝗻𝗴 '{title}' 𝗿𝗮𝗴𝗴𝗲𝗱 𝘀𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆!")
             self.downloading = False
-            self.update_download_status()
+            self.update_download_status("Song ragged successfuly!")
             self.update_playlist()
         except Exception as e:
             messagebox.showerror("Error", f"𝗙𝗮𝗶𝗹𝗲𝗱 𝘁𝗼 𝗿𝗮𝗴 𝘀𝗼𝗻𝗴: {str(e)}")
@@ -386,7 +397,8 @@ class rag_ui:
         self.play_song()
             
     def set_volume(self, val):
-        volume = float(val) / 100
+        volume = float(val) / 50
+        print(volume)
         pygame.mixer.music.set_volume(volume)
         
     def close_window(self):
@@ -397,7 +409,7 @@ class rag_ui:
     def get_time(self):
         if self.running:  # Check if the application is still running
             current_time = pygame.mixer.music.get_pos() / 1000
-            formatted_time = time.strftime("%H:%M:%S", time.gmtime(current_time))
+            formatted_time = time.strftime("%M:%S", time.gmtime(current_time))
 
             next_one = self.listbox.curselection()
             if next_one:  # Check if anything is selected
@@ -405,7 +417,7 @@ class rag_ui:
                 song = self.listbox.get(index)  # Get the song name from the listbox
                 song_timer = MP3(os.path.join(self.song_directory, song))
                 song_length = int(song_timer.info.length)
-                format_for_length = time.strftime("%H:%M:%S", time.gmtime(song_length))
+                format_for_length = time.strftime("%M:%S", time.gmtime(song_length))
                 self.progressbar_label.configure(text=f"{formatted_time} / {format_for_length}")
 
                 # Set the name of the song under the progress bar
