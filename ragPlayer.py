@@ -178,28 +178,56 @@ class rag_ui:
         self.shuffle_on = True
 
         self.mainwindow.mainloop()
+        
+    def crop_images_to_square(self):
+        for filename in os.listdir(self.song_directory):
+            if filename.endswith(".png"):
+                png_path = os.path.join(self.song_directory, filename)
+                try:
+                    # Open the PNG image
+                    img = Image.open(png_path)
+                    width, height = img.size
+                    # Calculate the size of the square crop
+                    size = min(width, height)
+                    # Calculate coordinates for left and right crop
+                    left = (width - size) // 2
+                    right = left + size
+                    # Crop the image to a square
+                    img = img.crop((left, 0, right, size))
+                    # Save the cropped image back to the same file
+                    img.save(png_path)
+                except Exception as e:
+                    print(f"Error cropping {png_path}: {e}")
+                    
+    def run_convert_webp_to_png_thread(self):
+        convert_thread = threading.Thread(target=self.convert_webp_to_png)
+        convert_thread = threading.Thread(target=self.crop_images_to_square)
+        convert_thread.start()
 
-    def extract_album_art(self, mp3_path):
-        try:
-            audio = ID3(mp3_path)
-            if audio.getall('APIC'):
-                print("Album art found in the MP3 file.")
-                for tag in audio.getall('APIC'):
-                    # Extract album art data
-                    image_data = tag.data
-                    # Generate a filename based on the MP3 file's name
-                    mp3_filename = os.path.basename(mp3_path)
-                    album_art_filename = os.path.splitext(mp3_filename)[0] + "_album_art.png"
-                    # Write image data to the generated filename
-                    with open(album_art_filename, "wb") as img_file:
-                        img_file.write(image_data)
-                    return album_art_filename  # Return the generated filename for the extracted image
-            else:
-                print("No album art found in the MP3 file.")
-                return None  # Return None if no album art tag is found
-        except Exception as e:
-            print(f"Error extracting album art: {e}")
-            return None  # Return None if an error occurs during extraction
+        
+    def convert_webp_to_png(self):
+        for filename in os.listdir(self.song_directory):
+            if filename.endswith(".webp"):
+                webp_path = os.path.join(self.song_directory, filename)
+                png_path = os.path.splitext(webp_path)[0] + ".png"
+                try:
+                    # Open the WebP image
+                    img = Image.open(webp_path)
+                    # Convert and save as PNG
+                    img.convert("RGB").save(png_path, "PNG")
+                    # Remove the original WebP image
+                    os.remove(webp_path)
+                except Exception as e:
+                    print(f"Error converting {webp_path} to PNG: {e}")
+            if filename.endswith(".jpg"):
+                jpg_path = os.path.join(self.song_directory, filename)
+                png_path = os.path.splitext(jpg_path)[0] + ".png"
+                try:
+                    img = Image.open(jpg_path)
+                    img.convert("RGB").save(png_path, "PNG")
+                    os.remove(jpg_path)
+                except Exception as e:
+                    print(f"Error converting {jpg_path} to PNG: {e}")
     
     def update_album_art(self, img_path):
         self.album_art_label.config(image=self.album_art)
@@ -304,48 +332,8 @@ class rag_ui:
             }
 
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                result = ydl.extract_info(song_url, download=True)  # Download video with thumbnail
-                for entry in result['entries']:
-                    mp3_path = os.path.join(self.song_directory, f"{entry['title']}.mp3")
-                    thumbnail_path_webp = os.path.join(self.song_directory, f"{entry['title']}.webp")
-                    png_path = os.path.join(self.song_directory, f"{entry['title']}.png")
+                ydl.download([song_url])
 
-                    # Convert WebP thumbnail to PNG
-                    im = Image.open(thumbnail_path_webp).convert("RGB")
-                    width, height = im.size
-
-                    # Calculate cropping region for square
-                    if width > height:
-                        left = (width - height) // 2
-                        top = 0
-                        right = left + height
-                        bottom = height
-                    else:
-                        left = 0
-                        top = (height - width) // 2
-                        right = width
-                        bottom = top + width
-
-                    # Crop the image to square
-                    cropped_im = im.crop((left, top, right, bottom))
-
-                    # Save the cropped image
-                    cropped_im.save(png_path, "PNG")
-
-                    # Create an AudioFile object
-                    audiofile = ID3(mp3_path)
-
-                    # Set the album art
-                    with open(png_path, "rb") as img_file:
-                        img_data = img_file.read()
-                        audiofile.add(APIC(3, 'image/png', 3, 'Front cover', img_data))
-
-                    # Save changes to the MP3 file
-                    audiofile.save(v2_version=3)
-
-                    # Remove PNG thumbnail file
-                    os.remove(png_path)
-                    os.remove(thumbnail_path_webp)
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
@@ -387,31 +375,7 @@ class rag_ui:
             }
 
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                            result = ydl.extract_info(song_url, download=True)  # Download video with thumbnail
-                            mp3_path = os.path.join(self.song_directory, f"{result['title']}.mp3")
-                            thumbnail_path_jpg = os.path.join(self.song_directory, f"{result['title']}.jpg")
-                            png_path = os.path.join(self.song_directory, f"{result['title']}.png")
-
-                            # Jpg to Png
-                            im = Image.open(thumbnail_path_jpg).convert("RGB")
-                            png_path = os.path.join(self.song_directory, f"{result['title']}.png")
-                            im.save(png_path, "PNG")
-
-                            # Create an AudioFile object
-                            audiofile = MP3(mp3_path, ID3=ID3)
-                            audiofile.add_tags()
-
-                            # Set the album art
-                            with open(png_path, "rb") as img_file:
-                                img_data = img_file.read()
-                                audiofile.tags.add(APIC(3, 'image/png', 3, 'Front cover', img_data))
-
-                            # Save changes to the MP3 file
-                            audiofile.save(v2_version=3)
-
-                            # Remove PNG thumbnail file
-                            os.remove(png_path)
-                            os.remove(thumbnail_path_jpg)
+                ydl.download([song_url])
 
         except Exception as e:
                         messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
@@ -430,6 +394,8 @@ class rag_ui:
             }],
             'outtmpl': f"%(title)s.%(ext)s",
             'default_search': 'ytsearch',
+            'writethumbnail': True,
+            'ignoreerrors' : True
         }
         with youtube_dl.YoutubeDL(options) as ydl:
             ydl.download([query])
@@ -441,13 +407,13 @@ class rag_ui:
             self.current_song = self.playlist[self.current_index]
             mp3_path = os.path.join(self.song_directory, self.current_song)
             
-            # Extract album art from MP3 file
-            album_art_path = self.extract_album_art(mp3_path)
-            if album_art_path:
-                # Open the extracted image
-                img = Image.open(album_art_path)
+            # Check if a corresponding PNG image exists
+            png_path = os.path.join(self.song_directory, os.path.splitext(self.current_song)[0] + ".png")
+            if os.path.exists(png_path):
+                # Open the PNG image
+                img = Image.open(png_path)
                 # Resize the image to fit the label if needed
-                img = img.resize((250, 250), resample=Image.LANCZOS)  # Adjust desired_width and desired_height as needed
+                img = img.resize((250, 250), resample=Image.Resampling.LANCZOS)  # Adjust desired_width and desired_height as needed
                 # Convert the image to Tkinter PhotoImage
                 self.album_art = ImageTk.PhotoImage(img)
                 # Update the album art label
@@ -456,8 +422,10 @@ class rag_ui:
             else:
                 # Use default image if no embedded image found
                 self.update_album_art(os.path.join(self.song_directory, "default_image.png"))  # Replace "path_to_default_image.png" with your default image path
-            pygame.mixer.music.load(os.path.join(self.song_directory, self.current_song))
+
+            pygame.mixer.music.load(mp3_path)
             pygame.mixer.music.play()
+            self.run_convert_webp_to_png_thread()
 
 
     def stop_song(self):
