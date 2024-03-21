@@ -28,6 +28,7 @@ class rag_ui:
         # Global variables
         self.current_index = 0
         self.playlist = []
+        self.cropped = []
         self.current_song = None
         self.paused = False
         self.song_directory = os.getcwd()  # Default song directory
@@ -80,15 +81,28 @@ class rag_ui:
             self.frame_main, name="folder_frame")
         self.folder_frame.configure(height=200, width=200, borderwidth=0, highlightthickness=0)
 
+
+        self.folder_image = PhotoImage(file="folder.png")
+        self.eye_image = PhotoImage(file="eye.png")
+        self.refresh_image = PhotoImage(file="refresh.png")
+        self.next_image = PhotoImage(file="next.png")
+        self.back_image = PhotoImage(file="back.png")
+        self.select_image = PhotoImage(file="select.png")
+
         self.open_folder_button = ttk.Button(
-            self.folder_frame, text="📂", command=self.open_folder)
+            self.folder_frame, image=self.folder_image, command=self.open_folder, padding=0, compound=tk.CENTER)
         self.open_folder_button.pack(side="left", padx=5)
         self.open_folder_button.config(width=5)  # Set button width
 
         self.change_location_button = ttk.Button(
-            self.folder_frame, text="👁", command=self.change_location)
+            self.folder_frame, image=self.eye_image, command=self.change_location, padding=0, compound=tk.CENTER)
         self.change_location_button.pack(side="right", padx=5)
         self.change_location_button.config(width=5)  # Set button width
+        
+        self.refresh_button = ttk.Button(
+            self.folder_frame, image=self.refresh_image, command=self.reload_playlist,padding=0, compound=tk.CENTER)
+        self.refresh_button.pack(side="right", padx=5)
+        self.refresh_button.config(width=5)  # Set button width
 
         self.folder_frame.pack(side="top")
 
@@ -117,19 +131,21 @@ class rag_ui:
         
         self.previous_button = ttk.Button(
             self.button_frame, name="previous_button")
-        self.previous_button.configure(text='⏮', command=self.previous_song)
+        self.previous_button.configure(image=self.back_image, command=self.previous_song, padding=0, compound=tk.CENTER)
         self.previous_button.pack(side="left", padx= 5)
 
         self.play_button = ttk.Button(self.button_frame, name="play_button")
-        self.play_button.configure(text='✔', command=self.play_song)
+        self.play_button.configure(image=self.select_image, command=self.play_song, padding=0, compound=tk.CENTER)
         self.play_button.pack(side="left", padx= 5)
 
         self.next_button = ttk.Button(self.button_frame, name="next_button")
-        self.next_button.configure(text='⏭', command=self.next_song)
+        self.next_button.configure(image=self.next_image, command=self.next_song, padding=0, compound=tk.CENTER)
         self.next_button.pack(side="right", padx= 5)
 
+        self.play_image = PhotoImage(file="play.png")
+        self.pause_image = PhotoImage(file="pause.png")
         self.pause_unpause_button = ttk.Button(self.button_frame, name="pause_unpause_button")
-        self.pause_unpause_button.configure(text='⏸', command=self.pause_unpause_song)
+        self.pause_unpause_button.configure(image=self.pause_image, command=self.pause_unpause_song, padding=0, compound=tk.CENTER)
         self.pause_unpause_button.pack(side="right", padx= 5)
 
         self.shuffle_mode = tk.BooleanVar()  # Variable to track shuffle mode
@@ -167,6 +183,7 @@ class rag_ui:
         self.song_label = ttk.Label(self.volume_panel, name="song_label")
         self.song_label.configure(width=60, font="{BigNoodleTitling} 16 {}", text='Now playing: ')
         self.song_label.pack(side="top", pady= 20)
+        self.mainwindow.bind("<space>", self.toggle_pause_unpause)
 
         self.get_time()  # Start updating the time and progress bar
 
@@ -178,10 +195,17 @@ class rag_ui:
         self.shuffle_on = True
 
         self.mainwindow.mainloop()
-        
+    
+    def reload_playlist(self):
+        self.populate_playlist()
+        self.run_convert_webp_to_png_thread()
+        self.run_crop()
+    
     def crop_images_to_square(self):
         for filename in os.listdir(self.song_directory):
-            if filename.endswith(".png"):
+            if filename.endswith(".png") and not self.cropped.__contains__(filename):
+                self.cropped.append(filename)
+                print(filename)
                 png_path = os.path.join(self.song_directory, filename)
                 try:
                     # Open the PNG image
@@ -201,6 +225,9 @@ class rag_ui:
                     
     def run_convert_webp_to_png_thread(self):
         convert_thread = threading.Thread(target=self.convert_webp_to_png)
+        convert_thread.start()
+        
+    def run_crop(self):
         convert_thread = threading.Thread(target=self.crop_images_to_square)
         convert_thread.start()
 
@@ -401,6 +428,8 @@ class rag_ui:
             ydl.download([query])
 
     def play_song(self):
+        self.run_convert_webp_to_png_thread()
+        self.run_crop()
         selected_index = self.listbox.curselection()
         if selected_index:
             self.current_index = selected_index[0]
@@ -425,7 +454,6 @@ class rag_ui:
 
             pygame.mixer.music.load(mp3_path)
             pygame.mixer.music.play()
-            self.run_convert_webp_to_png_thread()
 
 
     def stop_song(self):
@@ -433,15 +461,26 @@ class rag_ui:
             pygame.mixer.music.stop()
             self.paused = False
     
+    def toggle_pause_unpause(self, event):
+        if pygame.mixer.music.get_busy():
+            if self.paused:
+                pygame.mixer.music.unpause()  # Unpause if music is paused
+                self.paused = False
+                self.pause_unpause_button.configure(image=self.pause_image)
+            else:
+                pygame.mixer.music.pause()  # Pause if music is playing
+                self.paused = True
+                self.pause_unpause_button.configure(image=self.play_image)
+            
     def pause_unpause_song(self):
         if self.paused:
             pygame.mixer.music.unpause()  # Unpause if music is paused
             self.paused = False
-            self.pause_unpause_button.configure(text='⏸')
+            self.pause_unpause_button.configure(image=self.pause_image)
         else:
             pygame.mixer.music.pause()  # Pause if music is playing
             self.paused = True
-            self.pause_unpause_button.configure(text='▶')
+            self.pause_unpause_button.configure(image=self.play_image)
 
     def next_song(self):
         if self.shuffle_on:
@@ -474,10 +513,10 @@ class rag_ui:
 
     def play_selected_song(self, event):
         self.play_song()
+        self.pause_unpause_button.configure(image=self.pause_image)
             
     def set_volume(self, val):
         volume = float(val) / 50
-        print(volume)
         pygame.mixer.music.set_volume(volume)
         
     def close_window(self):
