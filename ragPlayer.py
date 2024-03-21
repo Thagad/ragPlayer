@@ -11,10 +11,15 @@ import subprocess
 import json
 import pygame
 from mutagen.mp3 import MP3
+from mutagen.id3 import ID3, APIC, error, TIT2
 import time
 import random
 import threading
 import re
+import eyed3
+from PIL import Image
+import base64
+from tkinter import PhotoImage
 
 class rag_ui:
     def __init__(self, master=None):
@@ -239,6 +244,7 @@ class rag_ui:
         else:
             return None
                 
+    # Modify the download_youtube_audio function to properly handle encoding
     def download_youtube_audio(self, song_url):
         try:
             def progress_hook(d):
@@ -253,7 +259,7 @@ class rag_ui:
                     # Format the progress message with percentage downloaded and download speed
                     message = f"[Ragging] {percent} {speed}"
                     self.update_download_status(message)
-                    
+
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'postprocessors': [{
@@ -263,13 +269,58 @@ class rag_ui:
                 }],
                 'outtmpl': os.path.join(self.song_directory, '%(title)s.%(ext)s'),  # Save to current directory
                 'progress_hooks': [progress_hook],
-                'skip_unavailable_fragments': True
+                'skip_unavailable_fragments': True,
+                'writethumbnail': True,  # Write video thumbnail
             }
+
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([song_url])
+                result = ydl.extract_info(song_url, download=True)  # Download video with thumbnail
+                for entry in result['entries']:
+                    mp3_path = os.path.join(self.song_directory, f"{entry['title']}.mp3")
+                    thumbnail_path_webp = os.path.join(self.song_directory, f"{entry['title']}.webp")
+                    png_path = os.path.join(self.song_directory, f"{entry['title']}.png")
+
+                    # Convert WebP thumbnail to PNG
+                    im = Image.open(thumbnail_path_webp).convert("RGB")
+                    width, height = im.size
+
+                    # Calculate cropping region for square
+                    if width > height:
+                        left = (width - height) // 2
+                        top = 0
+                        right = left + height
+                        bottom = height
+                    else:
+                        left = 0
+                        top = (height - width) // 2
+                        right = width
+                        bottom = top + width
+
+                    # Crop the image to square
+                    cropped_im = im.crop((left, top, right, bottom))
+
+                    # Save the cropped image
+                    cropped_im.save(png_path, "PNG")
+
+                    # Create an AudioFile object
+                    audiofile = ID3(mp3_path)
+
+                    # Set the album art
+                    with open(png_path, "rb") as img_file:
+                        img_data = img_file.read()
+                        audiofile.add(APIC(3, 'image/png', 3, 'Front cover', img_data))
+
+                    # Save changes to the MP3 file
+                    audiofile.save(v2_version=3)
+
+                    # Remove PNG thumbnail file
+                    os.remove(png_path)
+                    os.remove(thumbnail_path_webp)
+
         except Exception as e:
             messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
         finally:
+            self.populate_playlist()
             self.downloading = False  # Reset downloading flag
 
 
