@@ -20,6 +20,7 @@ import eyed3
 from PIL import Image, ImageTk
 import base64
 from tkinter import PhotoImage
+import shutil
 
 class rag_ui:
     def __init__(self, master=None):
@@ -254,10 +255,6 @@ class rag_ui:
                     os.remove(jpg_path)
                 except Exception as e:
                     print(f"Error converting {jpg_path} to PNG: {e}")
-    
-    def update_album_art(self, img_path):
-        self.album_art_label.config(image=self.album_art)
-        self.album_art_label.image = self.album_art
         
     def clear_url(self):
         self.url_entry.delete(0, tk.END)
@@ -293,6 +290,13 @@ class rag_ui:
         new_location = filedialog.askdirectory()
         if new_location:
             self.song_directory = new_location
+            
+            # Copy default_image.png to the song directory if it's not already there
+            default_image_path = os.path.join(os.getcwd(), "default_image.png")
+            song_default_image_path = os.path.join(self.song_directory, "default_image.png")
+            if not os.path.exists(song_default_image_path):
+                shutil.copy(default_image_path, song_default_image_path)
+            
             self.update_playlist()
             self.playlist_label.config(text=os.path.basename(self.song_directory))  # Update playlist label
 
@@ -447,7 +451,11 @@ class rag_ui:
                 self.album_art_label.image = self.album_art
             else:
                 # Use default image if no embedded image found
-                self.update_album_art(os.path.join(self.song_directory, "default_image.png"))  # Replace "path_to_default_image.png" with your default image path
+                img = Image.open(os.path.join(self.song_directory, "default_image.png"))  # Replace "path_to_default_image.png" with your default image path
+                self.album_art = ImageTk.PhotoImage(img)
+                self.album_art_label.config(image=self.album_art)
+                self.album_art_label.image = self.album_art
+
 
             pygame.mixer.music.load(mp3_path)
             pygame.mixer.music.play()
@@ -544,26 +552,27 @@ class rag_ui:
                 # Check if current time equals or exceeds song length
                 if int(current_time) >= song_length:
 
-                    if self.shuffle_on:
-                        # Select a random song from the playlist
-                        next_index = random.randint(0, len(self.playlist) - 1)  # Select a random song index
-                        while next_index == index:  # Ensure the next song is not the same as the current one
-                            next_index = random.randint(0, len(self.playlist) - 1)
+                    if len(self.playlist) == 1:
+                        # Replay the same song if there's only one song in the playlist
+                        self.play_song()
                     else:
-                        # Select the next song in the playlist
-                        next_index = (index + 1) % len(self.playlist)
+                        if self.shuffle_on:
+                            # Select a random song from the playlist
+                            next_index = random.randint(0, len(self.playlist) - 1)  # Select a random song index
+                            while next_index == index:  # Ensure the next song is not the same as the current one
+                                next_index = random.randint(0, len(self.playlist) - 1)
+                        else:
+                            # Select the next song in the playlist, loop back to the first if reaching the last song
+                            next_index = (index + 1) % len(self.playlist)
 
-                    self.listbox.selection_clear(0, tk.END)
-                    self.listbox.selection_set(next_index)
-                    self.current_index = next_index
+                        self.listbox.selection_clear(0, tk.END)
+                        self.listbox.selection_set(next_index)
+                        self.current_index = next_index
 
-                    # Play the next song
-                    self.play_song()
+                        # Play the next song
+                        self.play_song()
 
             self.mainwindow.after(100, self.get_time)
-
-
-
 
     def center(self, event):
         wm_min = self.mainwindow.wm_minsize()
