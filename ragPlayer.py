@@ -34,7 +34,6 @@ class rag_ui:
         self.song_directory = os.getcwd()  # Default song directory
         self.downloading = False  # Flag to track if downloading is in progress
         self.running = True
-        self.shuffle_on = True
 
         # Build UI
         self.mainwindow = ttk.Window(themename='ragard_dark') if master is None else tk.Toplevel(master)
@@ -180,6 +179,7 @@ class rag_ui:
             font="{BigNoodleTitling} 14 {}",
             text='00:00 / 00:00')
         self.progressbar_label.pack(side="top")
+
         self.song_label = ttk.Label(self.volume_panel, name="song_label")
         self.song_label.configure(width=60, font="{BigNoodleTitling} 16 {}", text='Now playing: ')
         self.song_label.pack(side="top", pady= 20)
@@ -190,6 +190,9 @@ class rag_ui:
         self.volume_panel.pack(side="top")
         self.frame_main.pack(side="top")
         self.mainwindow.protocol("WM_DELETE_WINDOW", self.close_window)
+
+        # Main widget
+        self.shuffle_on = True
 
         self.mainwindow.mainloop()
     
@@ -477,10 +480,6 @@ class rag_ui:
             self.pause_unpause_button.configure(image=self.play_image)
 
     def next_song(self):
-        if self.listbox.size() == 0:
-            # If the playlist is empty, do nothing
-            return
-        
         if self.shuffle_on:
             next_index = random.randint(0, self.listbox.size() - 1)
             self.listbox.selection_clear(0, tk.END)
@@ -495,9 +494,6 @@ class rag_ui:
             self.play_song()
 
     def previous_song(self):
-        if self.listbox.size() == 0:
-            # If the playlist is empty, do nothing
-            return
         if self.shuffle_on:
             previous_index = random.randint(0, self.listbox.size() - 1)
             self.listbox.selection_clear(0, tk.END)
@@ -547,8 +543,6 @@ class rag_ui:
 
                 # Check if current time equals or exceeds song length
                 if int(current_time) >= song_length:
-                    # Stop the current song
-                    pygame.mixer.music.stop()
 
                     if self.shuffle_on:
                         # Select a random song from the playlist
@@ -565,11 +559,6 @@ class rag_ui:
 
                     # Play the next song
                     self.play_song()
-
-            # Check if the current song has finished playing
-            if not pygame.mixer.music.get_busy():
-                # Play the next song
-                self.next_song()
 
             self.mainwindow.after(100, self.get_time)
 
