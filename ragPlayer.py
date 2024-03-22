@@ -34,6 +34,7 @@ class rag_ui:
         self.song_directory = os.getcwd()  # Default song directory
         self.downloading = False  # Flag to track if downloading is in progress
         self.running = True
+        self.shuffle_on = True
 
         # Build UI
         self.mainwindow = ttk.Window(themename='ragard_dark') if master is None else tk.Toplevel(master)
@@ -179,7 +180,6 @@ class rag_ui:
             font="{BigNoodleTitling} 14 {}",
             text='00:00 / 00:00')
         self.progressbar_label.pack(side="top")
-
         self.song_label = ttk.Label(self.volume_panel, name="song_label")
         self.song_label.configure(width=60, font="{BigNoodleTitling} 16 {}", text='Now playing: ')
         self.song_label.pack(side="top", pady= 20)
@@ -190,9 +190,6 @@ class rag_ui:
         self.volume_panel.pack(side="top")
         self.frame_main.pack(side="top")
         self.mainwindow.protocol("WM_DELETE_WINDOW", self.close_window)
-
-        # Main widget
-        self.shuffle_on = True
 
         self.mainwindow.mainloop()
     
@@ -205,7 +202,6 @@ class rag_ui:
         for filename in os.listdir(self.song_directory):
             if filename.endswith(".png") and not self.cropped.__contains__(filename):
                 self.cropped.append(filename)
-                print(filename)
                 png_path = os.path.join(self.song_directory, filename)
                 try:
                     # Open the PNG image
@@ -365,7 +361,7 @@ class rag_ui:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
         finally:
-            self.populate_playlist()
+            self.reload_playlist()
             self.downloading = False  # Reset downloading flag
 
 
@@ -383,7 +379,7 @@ class rag_ui:
 
             self.downloading = False
             self.update_download_status("Song ragged successfuly!")
-            self.update_playlist()
+            self.reload_playlist()
         except Exception as e:
             messagebox.showerror("Error", f"𝗙𝗮𝗶𝗹𝗲𝗱 𝘁𝗼 𝗿𝗮𝗴 𝘀𝗼𝗻𝗴: {str(e)}")
 
@@ -407,7 +403,7 @@ class rag_ui:
         except Exception as e:
                         messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
         finally:
-                        self.populate_playlist()
+                        self.reload_playlist()
                         self.downloading = False  # Reset downloading flag
 
     def search_and_download_youtube(self, title, artist):
@@ -428,8 +424,6 @@ class rag_ui:
             ydl.download([query])
 
     def play_song(self):
-        self.run_convert_webp_to_png_thread()
-        self.run_crop()
         selected_index = self.listbox.curselection()
         if selected_index:
             self.current_index = selected_index[0]
@@ -483,6 +477,10 @@ class rag_ui:
             self.pause_unpause_button.configure(image=self.play_image)
 
     def next_song(self):
+        if self.listbox.size() == 0:
+            # If the playlist is empty, do nothing
+            return
+        
         if self.shuffle_on:
             next_index = random.randint(0, self.listbox.size() - 1)
             self.listbox.selection_clear(0, tk.END)
@@ -497,6 +495,9 @@ class rag_ui:
             self.play_song()
 
     def previous_song(self):
+        if self.listbox.size() == 0:
+            # If the playlist is empty, do nothing
+            return
         if self.shuffle_on:
             previous_index = random.randint(0, self.listbox.size() - 1)
             self.listbox.selection_clear(0, tk.END)
@@ -564,6 +565,11 @@ class rag_ui:
 
                     # Play the next song
                     self.play_song()
+
+            # Check if the current song has finished playing
+            if not pygame.mixer.music.get_busy():
+                # Play the next song
+                self.next_song()
 
             self.mainwindow.after(100, self.get_time)
 
