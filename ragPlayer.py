@@ -35,6 +35,7 @@ class rag_ui:
         self.song_directory = os.getcwd()  # Default song directory
         self.downloading = False  # Flag to track if downloading is in progress
         self.running = True
+        self.downloadSwitch = False
 
         # Build UI
         self.mainwindow = ttk.Window(themename='ragard_dark') if master is None else tk.Toplevel(master)
@@ -89,6 +90,7 @@ class rag_ui:
         self.next_image = PhotoImage(file="next.png")
         self.back_image = PhotoImage(file="back.png")
         self.select_image = PhotoImage(file="select.png")
+        self.switch = PhotoImage(file="switch.png")
 
         self.open_folder_button = ttk.Button(
             self.folder_frame, image=self.folder_image, command=self.open_folder, padding=0, compound=tk.CENTER)
@@ -104,6 +106,11 @@ class rag_ui:
             self.folder_frame, image=self.refresh_image, command=self.reload_playlist,padding=0, compound=tk.CENTER)
         self.refresh_button.pack(side="right", padx=5)
         self.refresh_button.config(width=5)  # Set button width
+        
+        self.switch_button = ttk.Button(
+            self.folder_frame, image=self.switch, command=self.switch_downloadpage,padding=0, compound=tk.CENTER)
+        self.switch_button.pack(side="right", padx=5)
+        self.switch_button.config(width=5)  # Set button width
 
         self.folder_frame.pack(side="top")
 
@@ -116,18 +123,56 @@ class rag_ui:
         self.playlist_label.configure(
             font="{BigNoodleTitling} 20 {italic underline}",
             text=os.path.basename(self.song_directory))  # Set label text to folder name
-        self.playlist_label.pack(side="top")
+        self.playlist_label.place(relx=0.0, rely=0.0, anchor="center")
+        self.playlist_label.pack(fill="none", expand=True)
+        
+        
+        self.image_path = os.path.join(self.song_directory, 'thumb.png')
+        if os.path.isfile(self.image_path):
+            self.playlist_art = Image.open(self.image_path)
+            self.playlist_art = self.playlist_art.resize((100, 100), Image.Resampling.LANCZOS)
+            self.playlist_artwork = ImageTk.PhotoImage(self.playlist_art)   
+            self.playlist_image = tk.Label(
+                self.playlist_frame, name="playlist_image", image=self.playlist_artwork)
+            self.playlist_image.pack(side="left", before=self.playlist_label, padx=10)
+        else:
+            self.playlist_image = tk.Label(
+                self.playlist_frame, name="playlist_image", image=None)
+            self.playlist_image.pack(side="left", before=self.playlist_label, padx=10)
 
-        self.listbox = tk.Listbox(self.playlist_frame, name="listbox")
+        self.playlist_frame.pack(side="top", pady= 20)
+        
+        self.listbox = tk.Listbox(self.frame_main, name="listbox")
         self.listbox.configure(font="{BigNoodleTitling} 14 {}", width=70)  # Adjust width as needed
         self.listbox.pack(side="top", fill="both", expand=True)
         self.populate_playlist()  # Populate playlist initially
         self.listbox.bind("<<ListboxSelect>>", self.play_selected_song)  # Bind selection event to play_selected_song
 
-        self.playlist_frame.pack(side="top", pady= 20)
 
-        self.button_frame = ttk.Frame(
-            self.frame_main, name="button_frame")
+        self.volume_panel = ttk.Frame(
+            self.frame_main, name="volume_panel")
+        self.volume_panel.configure(height=200, width=200)
+        self.album_art = PhotoImage(file=os.path.join(self.song_directory, "default_image.png")) 
+        self.album_art_label = ttk.Label(self.volume_panel, name="album_art_label", image=self.album_art)
+        self.album_art_label.pack(side="top", pady=10)
+
+        self.scale1 = ttk.Scale(self.volume_panel)
+        self.scale1.configure(length=200, orient="horizontal", from_= -1, to=100, command=self.set_volume)
+        self.scale1.set(15)
+        self.scale1.pack(side="top")
+        
+        self.progressbar = ttk.Progressbar(
+            self.volume_panel, name="progressbar")
+        self.progressbar.configure(length=450, orient="horizontal", mode='determinate')
+        self.progressbar.pack(side="top", pady= 10 )
+
+        self.song_label = ttk.Label(self.volume_panel, name="song_label")
+        self.song_label.configure(width=60, font="{BigNoodleTitling} 16 {}", text='Now playing: ')
+        self.song_label.place(relx=0.0, rely=0.0, anchor="center")
+        self.song_label.pack(side="bottom", pady= 3)
+        self.mainwindow.bind("<space>", self.toggle_pause_unpause)
+        
+        self.button_frame = ttk.Frame(self.frame_main, name="button_frame")
         self.button_frame.configure(height=100, width=100)
         
         self.previous_button = ttk.Button(
@@ -155,36 +200,15 @@ class rag_ui:
         self.shuffle_button.configure(text='𝘀𝗵𝘂𝗳𝗳𝗹𝗲', variable=self.shuffle_mode, command=self.toggle_shuffle)
         self.shuffle_button.pack(side="right")
 
-        self.button_frame.pack(side="top", pady=5)
-
-        self.volume_panel = ttk.Frame(
-            self.frame_main, name="volume_panel")
-        self.volume_panel.configure(height=200, width=200)
-        self.album_art = PhotoImage(file=os.path.join(self.song_directory, "default_image.png")) 
-        self.album_art_label = ttk.Label(self.volume_panel, name="album_art_label", image=self.album_art)
-        self.album_art_label.pack(side="top")
-
-        self.scale1 = ttk.Scale(self.volume_panel)
-        self.scale1.configure(length=150, orient="horizontal", from_= 0, to=50, command=self.set_volume)
-        self.scale1.set(25)
-        self.scale1.pack(side="top", pady=20)
-
-        self.progressbar = ttk.Progressbar(
-            self.volume_panel, name="progressbar")
-        self.progressbar.configure(length=450, orient="horizontal", mode='determinate')
-        self.progressbar.pack(side="top")
-
+        self.button_frame.pack(side="top", pady=5, before=self.song_label)
+        
         self.progressbar_label = ttk.Label(
             self.volume_panel, name="progressbar_label")
         self.progressbar_label.configure(
             font="{BigNoodleTitling} 14 {}",
             text='00:00 / 00:00')
-        self.progressbar_label.pack(side="top")
+        self.progressbar_label.pack(side="top", pady= 5)
 
-        self.song_label = ttk.Label(self.volume_panel, name="song_label")
-        self.song_label.configure(width=60, font="{BigNoodleTitling} 16 {}", text='Now playing: ')
-        self.song_label.pack(side="top", pady= 20)
-        self.mainwindow.bind("<space>", self.toggle_pause_unpause)
 
         self.get_time()  # Start updating the time and progress bar
 
@@ -195,7 +219,26 @@ class rag_ui:
         # Main widget
         self.shuffle_on = True
 
+        self.mainwindow.after(60, self.switch_downloadpage)
         self.mainwindow.mainloop()
+    
+    def switch_downloadpage(self):
+        # Check if the url_entry widget is currently visible
+        if self.url_entry.winfo_viewable():
+            self.download_frame.configure(height=1, width=1)
+            self.url_label.grid_remove()
+            self.url_entry.grid_remove()
+            self.download_status_label.grid_remove()
+            self.button4.grid_remove()
+            self.clear_url_button.grid_remove()
+        else:
+            # Show the hidden widgets by using grid again
+            self.download_frame.configure(height=200, width=200)
+            self.url_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+            self.url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
+            self.download_status_label.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="we")
+            self.button4.grid(row=2, column=0, padx=(10, 5), sticky="ew")
+            self.clear_url_button.grid(row=2, column=1, padx=(5, 10), sticky="ew")
     
     def reload_playlist(self):
         self.populate_playlist()
@@ -299,6 +342,12 @@ class rag_ui:
             
             self.update_playlist()
             self.playlist_label.config(text=os.path.basename(self.song_directory))  # Update playlist label
+            self.image_path = os.path.join(self.song_directory, 'thumb.png') 
+            if(os.path.isfile(self.image_path)):
+                self.playlist_art = Image.open(self.image_path)
+                self.playlist_art = self.playlist_art.resize((100, 100), Image.Resampling.LANCZOS)
+                self.playlist_artwork = ImageTk.PhotoImage(self.playlist_art)  
+                self.playlist_image.config(image=self.playlist_artwork)
 
 
     def download_song(self):
@@ -369,6 +418,7 @@ class rag_ui:
             messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
         finally:
             self.reload_playlist()
+            self.update_download_status("")
             self.downloading = False  # Reset downloading flag
 
 
@@ -443,7 +493,7 @@ class rag_ui:
                 # Open the PNG image
                 img = Image.open(png_path)
                 # Resize the image to fit the label if needed
-                img = img.resize((250, 250), resample=Image.Resampling.LANCZOS)  # Adjust desired_width and desired_height as needed
+                img = img.resize((200, 200), resample=Image.Resampling.LANCZOS)  # Adjust desired_width and desired_height as needed
                 # Convert the image to Tkinter PhotoImage
                 self.album_art = ImageTk.PhotoImage(img)
                 # Update the album art label
@@ -521,7 +571,7 @@ class rag_ui:
         self.pause_unpause_button.configure(image=self.pause_image)
             
     def set_volume(self, val):
-        volume = float(val) / 50
+        volume = float(val) / 200
         pygame.mixer.music.set_volume(volume)
         
     def close_window(self):
@@ -603,3 +653,4 @@ class rag_ui:
 if __name__ == "__main__":
     app = rag_ui()
     app.run()
+    
