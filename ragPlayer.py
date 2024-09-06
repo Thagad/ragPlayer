@@ -19,7 +19,7 @@ import random
 import threading
 import re
 import eyed3
-from PIL import Image, ImageTk
+from PIL import Image, ImageDraw, ImageTk
 import base64
 from tkinter import PhotoImage
 import shutil
@@ -43,12 +43,48 @@ class rag_ui:
 
         # Build UI
         self.mainwindow = ttk.Window(themename='ragard_dark') if master is None else tk.Toplevel(master)
+        self.mainwindow.overrideredirect(True)
         self.mainwindow.configure(height=500, width=400)
         self.mainwindow.resizable(False, False)
-        self.mainwindow.title("ragPlayer")
+        self.mainwindow.title("ragPlayer")  
+        self.mainwindow.protocol("WM_DELETE_WINDOW", self.on_destroy)
+        
+        self.mainwindow.attributes("-topmost", True)    # Ensure the window stays on top
+        self.mainwindow.attributes("-toolwindow", False)
+        
+        def start_move(event):
+            self.mainwindow.x = event.x
+            self.mainwindow.y = event.y
+
+        def do_move(event):
+            deltax = event.x - self.mainwindow.x
+            deltay = event.y - self.mainwindow.y
+            self.mainwindow.geometry(f"+{self.mainwindow.winfo_x() + deltax}+{self.mainwindow.winfo_y() + deltay}")
+
+        # Minimize the window
+        def minimize_window():
+            self.mainwindow.iconify()
+
+        # Close the window
+        def close_window():
+            self.mainwindow.destroy()
 
         self.frame_main = ttk.Frame(self.mainwindow, name="frame_main")
         self.frame_main.configure(height=500, width=400)
+        # Create a frame to act as the top bar
+        top_bar = tk.Frame(self.mainwindow, bg="gray", relief="raised", bd=2)
+        top_bar.pack(side="top", fill="x")
+
+        button_bar = tk.Frame(top_bar, bg="gray", relief="raised", bd=0.1)
+        button_bar.pack(side="right")
+
+        # Exit button
+        exit_button = tk.Button(button_bar, text="X", bg="gray", fg="white", command=close_window, relief="flat")
+        exit_button.pack(side="right")
+
+        # Bind the drag functionality to the top bar
+        top_bar.bind("<Button-1>", start_move)
+        top_bar.bind("<B1-Motion>", do_move)
 
         label1 = ttk.Label(self.frame_main)
         label1.configure(font="{BigNoodleTitling} 36 {}", text='ragPlayer')
@@ -129,8 +165,7 @@ class rag_ui:
             text=os.path.basename(self.song_directory))  # Set label text to folder name
         self.playlist_label.place(relx=0.0, rely=0.0, anchor="center")
         self.playlist_label.pack(fill="none", expand=True)
-        
-        
+            
         self.image_path = os.path.join(self.song_directory, 'thumb.png')
         if os.path.isfile(self.image_path):
             self.playlist_art = Image.open(self.image_path)
@@ -175,10 +210,14 @@ class rag_ui:
         self.progressbar.configure(length=450, orient="horizontal", mode='determinate')
         self.progressbar.pack(side="top", pady= 10 )
 
-        self.song_label = ttk.Label(self.volume_panel, name="song_label")
-        self.song_label.configure(width=60, font="{BigNoodleTitling} 16 {}", text='Now playing: ')
-        self.song_label.place(relx=0.0, rely=0.0, anchor="center")
-        self.song_label.pack(side="bottom", pady= 3)
+
+        self.container_frame = ttk.Frame(self.volume_panel)
+        self.container_frame.configure(height=20, width=100)
+        self.container_frame.pack(fill="both", expand=True, side="bottom", pady=10)
+
+        self.song_label = ttk.Label(self.container_frame, name="song_label")
+        self.song_label.configure(font="{BigNoodleTitling} 16 {}", text='Now playing: ')
+        self.song_label.place(relx=0.5, rely=0.5, anchor="center")
         self.mainwindow.bind("<space>", self.toggle_pause_unpause)
         
         self.button_frame = ttk.Frame(self.frame_main, name="button_frame")
@@ -209,14 +248,14 @@ class rag_ui:
         self.shuffle_button.configure(text='𝘀𝗵𝘂𝗳𝗳𝗹𝗲', variable=self.shuffle_mode, command=self.toggle_shuffle)
         self.shuffle_button.pack(side="right")
 
-        self.button_frame.pack(side="top", pady=5, before=self.song_label)
+        self.button_frame.pack(side="top", pady=5, before=self.container_frame)
         
         self.progressbar_label = ttk.Label(
             self.volume_panel, name="progressbar_label")
         self.progressbar_label.configure(
             font="{BigNoodleTitling} 14 {}",
             text='00:00 / 00:00')
-        self.progressbar_label.pack(side="top", pady= 5)
+        self.progressbar_label.pack(side="top")
 
 
         self.get_time()  # Start updating the time and progress bar
@@ -274,8 +313,11 @@ class rag_ui:
             if widget == self.url_entry:
                 self.url_entry.focus_set()  # Temporarily focus on search bar (needed for focus_out to trigger)
 
-        
+        def on_map(event):
+            self.mainwindow.overrideredirect(1)
+            
         # Main widget
+        #self.mainwindow.bind("<Map>", on_map)
         self.mainwindow.bind("<Button-1>", click_outside_search)
         self.search_bar.bind('<Return>', cycle_matches)
         self.shuffle_on = True
@@ -284,7 +326,54 @@ class rag_ui:
         self.mainwindow.mainloop()
     
 
+    
+    def round_corners(self,image_path, size=(200, 200)):
+        # Open the image file
+        radius=16
+        img = Image.open(image_path).convert("RGBA")
+
+        # Resize image to fit the desired size
+        img = img.resize(size, Image.Resampling.LANCZOS)
+
+        # Create a mask with the same size as the resized image
+        mask = Image.new('L', size, 0)
+        draw = ImageDraw.Draw(mask)
         
+        # Draw a rounded rectangle on the mask
+        draw.rounded_rectangle((0, 0, size[0], size[1]), radius, fill=255)
+
+        # Create a new image for the output
+        rounded_img = Image.new('RGBA', size, (0, 0, 0, 0))
+        
+        # Paste the original image on the new image using the mask
+        rounded_img.paste(img, (0, 0), mask)
+        
+        return rounded_img
+    
+    
+    def round_corners2(self,image_path, size=(200, 200)):
+        # Open the image file
+        radius=16
+        img = Image.open(image_path).convert("RGBA")
+
+        # Resize image to fit the desired size
+        img = img.resize(size, Image.Resampling.LANCZOS)
+
+        # Create a mask with the same size as the resized image
+        mask = Image.new('L', size, 0)
+        draw = ImageDraw.Draw(mask)
+        
+        # Draw a rounded rectangle on the mask
+        draw.rounded_rectangle((0, 0, size[0], size[1]), radius, fill=255)
+
+        # Create a new image for the output
+        rounded_img = Image.new('RGBA', size, (0, 0, 0, 0))
+        
+        # Paste the original image on the new image using the mask
+        rounded_img.paste(img, (0, 0), mask)
+        
+        return rounded_img
+    
     def switch_downloadpage(self):
         # Check if the url_entry widget is currently visible
         if self.url_entry.winfo_viewable():
@@ -407,7 +496,7 @@ class rag_ui:
             self.playlist_label.config(text=os.path.basename(self.song_directory))  # Update playlist label
             self.image_path = os.path.join(self.song_directory, 'thumb.png') 
             if(os.path.isfile(self.image_path)):
-                self.playlist_art = Image.open(self.image_path)
+                self.playlist_art = self.round_corners(self.image_path)
                 self.playlist_art = self.playlist_art.resize((100, 100), Image.Resampling.LANCZOS)
                 self.playlist_artwork = ImageTk.PhotoImage(self.playlist_art)  
                 self.playlist_image.config(image=self.playlist_artwork)
@@ -557,7 +646,8 @@ class rag_ui:
             png_path = os.path.join(self.song_directory, os.path.splitext(self.current_song)[0] + ".png")
             if os.path.exists(png_path):
                 # Open the PNG image
-                img = Image.open(png_path)
+                self.rounded_image = self.round_corners(png_path)
+                img = self.rounded_image
                 # Resize the image to fit the label if needed
                 img = img.resize((200, 200), resample=Image.Resampling.LANCZOS)  # Adjust desired_width and desired_height as needed
                 # Convert the image to Tkinter PhotoImage
@@ -567,8 +657,10 @@ class rag_ui:
                 self.album_art_label.image = self.album_art
             else:
                 # Use default image if no embedded image found
-                img = Image.open(os.path.join(self.song_directory, "default_image.png"))  # Replace "path_to_default_image.png" with your default image path
-                self.album_art = ImageTk.PhotoImage(img)
+                self.default_image_path = os.path.join(self.song_directory, "default_image.png")
+                self.rounded_image = self.round_corners(self.default_image_path)
+                
+                self.album_art = ImageTk.PhotoImage(self.rounded_image)
                 self.album_art_label.config(image=self.album_art)
                 self.album_art_label.image = self.album_art
 
@@ -646,7 +738,10 @@ class rag_ui:
 
         
     def get_time(self):
-        if self.running:  # Check if the application is still running
+        if not self.running:  # Check if the application is closing or window is destroyed
+            return
+        
+        try:
             current_time = pygame.mixer.music.get_pos() / 1000
             formatted_time = time.strftime("%M:%S", time.gmtime(current_time))
 
@@ -660,14 +755,13 @@ class rag_ui:
                 self.progressbar_label.configure(text=f"{formatted_time} / {format_for_length}")
 
                 # Set the name of the song under the progress bar
-                self.song_label.configure(text=f"Now playing: {song}")  # Add this line
+                self.song_label.configure(text=f"{song}")
 
                 self.progressbar["maximum"] = song_length
                 self.progressbar["value"] = int(current_time)
 
                 # Check if current time equals or exceeds song length
                 if int(current_time) >= song_length:
-
                     if len(self.playlist) == 1:
                         # Replay the same song if there's only one song in the playlist
                         self.play_song()
@@ -688,7 +782,13 @@ class rag_ui:
                         # Play the next song
                         self.play_song()
 
-            self.mainwindow.after(100, self.get_time)
+            if self.running:
+                self.mainwindow.after(100, self.get_time)
+
+        except tk.TclError as e:
+            print(f"Error in get_time: {e}")
+
+                        
 
     def center(self, event):
         wm_min = self.mainwindow.wm_minsize()
@@ -715,6 +815,11 @@ class rag_ui:
             self.center_map = self.mainwindow.bind("<Map>", self.center)
         self.get_time()  # Start updating the time and progress bar
         self.mainwindow.mainloop()
+        
+    def on_destroy(self):
+        self.running = False
+        self.mainwindow.after_cancel(self.get_time)  # Cancel the ongoing get_time callback
+        self.mainwindow.destroy()
 
 if __name__ == "__main__":
     app = rag_ui()
