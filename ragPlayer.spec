@@ -4,7 +4,7 @@
 a = Analysis(
     ['ragPlayer.py'],
     pathex=[],
-    binaries=[],
+    binaries=[('ffmpeg/ffmpeg.exe', 'ffmpeg'), ('ffmpeg/ffprobe.exe', 'ffmpeg')],
     datas=[],
     hiddenimports=[],
     hookspath=[],
@@ -18,16 +18,13 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
-    name='ragPlayer',
+    exclude_binaries=True,
+    name='RagPlayer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -35,4 +32,13 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=['MP3_30924.ico'],
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='RagPlayer',
 )

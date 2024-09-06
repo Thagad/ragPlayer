@@ -1,3 +1,5 @@
+#pyinstaller --onedir --add-binary "ffmpeg/ffmpeg.exe;ffmpeg" --add-binary "ffmpeg/ffprobe.exe;ffmpeg" ragPlayer.py --name RagPlayer --windowed --icon=MP3_30924.ico   
+
 import tkinter as tk
 #import tkinter.ttk as ttk
 from tkinter import messagebox, filedialog
@@ -29,6 +31,7 @@ class rag_ui:
         # Global variables
         self.current_index = 0
         self.playlist = []
+        self.sorted_items = []
         self.cropped = []
         self.current_song = None
         self.paused = False
@@ -36,6 +39,7 @@ class rag_ui:
         self.downloading = False  # Flag to track if downloading is in progress
         self.running = True
         self.downloadSwitch = False
+        self.ffmpeg_dir = 'ffmpeg'
 
         # Build UI
         self.mainwindow = ttk.Window(themename='ragard_dark') if master is None else tk.Toplevel(master)
@@ -142,6 +146,11 @@ class rag_ui:
 
         self.playlist_frame.pack(side="top", pady= 20)
         
+        self.search_var = tk.StringVar()
+        self.search_bar = tk.Entry(self.frame_main, textvariable=self.search_var, width=50)
+        self.search_bar.configure(font="{BigNoodleTitling} 14 {}", width=70)
+        self.search_bar.pack()
+
         self.listbox = tk.Listbox(self.frame_main, name="listbox")
         self.listbox.configure(font="{BigNoodleTitling} 14 {}", width=70)  # Adjust width as needed
         self.listbox.pack(side="top", fill="both", expand=True)
@@ -216,12 +225,66 @@ class rag_ui:
         self.frame_main.pack(side="top")
         self.mainwindow.protocol("WM_DELETE_WINDOW", self.close_window)
 
-        # Main widget
-        self.shuffle_on = True
+        def reset_listbox_colors():
+            # Reset all items in the Listbox to white
+            for i in range(self.listbox.size()):
+                self.listbox.itemconfig(i, {'fg': 'white'})  # Reset color to white
+                
+        def search_listbox(search_term):
+            global visible_matches
+            visible_matches = []
 
+            # If search bar is empty, reset all colors to white
+            if len(search_term) == 0:
+                reset_listbox_colors()
+            else:
+                # Loop through all the items in the Listbox and apply the search filter
+                for i, item in enumerate(self.playlist):
+                    if search_term.lower() in item.lower():
+                        self.listbox.itemconfig(i, {'fg': 'red'})  # Highlight matched items
+                        visible_matches.append(i)  # Store the index of visible matches
+                    else:
+                        self.listbox.itemconfig(i, {'fg': '#1a1d1e'})  # Hide the item (white text on white bg)
+
+            # Reset the cycling index if search is updated
+            global current_match_index
+            current_match_index = -1
+            
+        def cycle_matches(event):
+            global current_match_index
+            if visible_matches:
+                # Cycle to the next match
+                current_match_index = (current_match_index + 1) % len(visible_matches)
+                
+                # Scroll the Listbox to the next matching item
+                self.listbox.see(visible_matches[current_match_index])
+                
+                # Highlight the item in the Listbox
+                self.listbox.selection_clear(0, tk.END)
+                self.listbox.selection_set(visible_matches[current_match_index])
+                self.listbox.activate(visible_matches[current_match_index])
+                self.play_song()
+                
+        def click_outside_search(event):
+            # Check if the click was outside the search bar
+            widget = event.widget
+            if widget != self.search_bar:
+                self.search_bar.focus_set()  # Temporarily focus on search bar (needed for focus_out to trigger)
+                self.mainwindow.focus()  # Set focus to the root window, effectively deselecting the search bar
+            if widget == self.url_entry:
+                self.url_entry.focus_set()  # Temporarily focus on search bar (needed for focus_out to trigger)
+
+        
+        # Main widget
+        self.mainwindow.bind("<Button-1>", click_outside_search)
+        self.search_bar.bind('<Return>', cycle_matches)
+        self.shuffle_on = True
+        self.search_var.trace("w", lambda name, index, mode: search_listbox(self.search_var.get()))
         self.mainwindow.after(60, self.switch_downloadpage)
         self.mainwindow.mainloop()
     
+
+        
     def switch_downloadpage(self):
         # Check if the url_entry widget is currently visible
         if self.url_entry.winfo_viewable():
@@ -403,6 +466,7 @@ class rag_ui:
                     'preferredcodec': 'mp3',
                     'preferredquality': '320',
                 }],
+                'ffmpeg_location': self.ffmpeg_dir,
                 'outtmpl': os.path.join(self.song_directory, '%(title)s.%(ext)s'),  # Save to current directory
                 'progress_hooks': [progress_hook],
                 'skip_unavailable_fragments': True,
@@ -449,6 +513,7 @@ class rag_ui:
                     'preferredcodec': 'mp3',
                     'preferredquality': '320',
                 }],
+                'ffmpeg_location': self.ffmpeg_dir,
                 'outtmpl': os.path.join(self.song_directory, '%(title)s.%(ext)s'),  # Save to current directory
                 'writethumbnail': True,  # Write embedded thumbnail,
                 'ignoreerrors' : True
@@ -472,6 +537,7 @@ class rag_ui:
                 'preferredcodec': 'mp3',
                 'preferredquality': '320',
             }],
+            'ffmpeg_location': self.ffmpeg_dir,
             'outtmpl': f"%(title)s.%(ext)s",
             'default_search': 'ytsearch',
             'writethumbnail': True,
