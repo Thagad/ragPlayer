@@ -89,9 +89,21 @@ class rag_ui:
         self.top_bar.bind("<Button-1>", start_move)
         self.top_bar.bind("<B1-Motion>", do_move)
 
-        label1 = ttk.Label(self.frame_main)
-        label1.configure(font="{BigNoodleTitling} 36 {}", text='ragPlayer')
-        label1.pack(side="top")
+        panelStyle = ttk.Style()
+        panelStyle.configure("Panel.TFrame", background="#fd2600", borderwidth=0 ,bordercolor="#fd2600")
+        
+        labelStyle = ttk.Style()
+        labelStyle.configure("Label.TLabel", background="#fd2600", bordercolor="#fd2600")
+        
+        labelStyle2 = ttk.Style()
+        labelStyle2.configure("Label2.TLabel", background="#222222", bordercolor="#222222")
+        
+        panel = ttk.Frame(self.mainwindow, relief="raised", style="Panel.TFrame")
+        panel.pack(fill="x", side="top")  # 'fill="x"' makes the panel span the entire width
+
+        # Create the label and place it inside the panel
+        label1 = ttk.Label(panel, font="{BigNoodleTitling} 36 {}", text='ragPlayer', style="Label.TLabel")
+        label1.pack(side="top", padx=10)  # Add padding if needed
 
         self.download_frame = tk.LabelFrame(
             self.frame_main, name="download_frame")
@@ -228,7 +240,7 @@ class rag_ui:
         self.container_frame.configure(height=20, width=100)
         self.container_frame.pack(fill="both", expand=True, side="bottom", pady=10)
 
-        self.song_label = ttk.Label(self.container_frame, name="song_label")
+        self.song_label = ttk.Label(self.container_frame, name="song_label", style="Label2.TLabel")
         self.song_label.configure(font="{BigNoodleTitling} 16 {}", text='Now playing: ')
         self.song_label.place(relx=0.5, rely=0.5, anchor="center")
         self.mainwindow.bind("<space>", self.toggle_pause_unpause)
@@ -331,7 +343,7 @@ class rag_ui:
             if self.windowsSwitch:
                 self.mainwindow.attributes("-topmost", True)
                 self.mainwindow.overrideredirect(True)
-                self.top_bar.pack(side="top", fill="x", before=self.frame_main)
+                self.top_bar.pack(side="top", fill="x", before=panel)
             else:
                 self.mainwindow.overrideredirect(False)
                 self.mainwindow.attributes("-topmost", False)
