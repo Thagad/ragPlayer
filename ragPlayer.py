@@ -111,12 +111,15 @@ class rag_ui:
         self.download_status_label.configure(text="", foreground="red", font="{BigNoodleTitling} 12 {}")
         self.download_status_label.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="we")
 
-        self.button4 = ttk.Button(self.download_frame, name="button4")
+        styleNoImg = ttk.Style()
+        styleNoImg.configure("Imageless.TButton", background="#fa332e")
+        
+        self.button4 = ttk.Button(self.download_frame, name="button4", style="Imageless.TButton")
         self.button4.configure(text='𝗥𝗮𝗴 𝗶𝘁', command=self.download_song, width=6)  # Adjusted width
         self.button4.grid(row=2, column=0, padx=(10, 5), sticky="ew")
 
         # Add the new button next to the "Rag it" button
-        self.clear_url_button = ttk.Button(self.download_frame, name="clear_url_button")
+        self.clear_url_button = ttk.Button(self.download_frame, name="clear_url_button", style="Imageless.TButton")
         self.clear_url_button.configure(text='𝗖𝗹𝗲𝗮𝗿', command=self.clear_url, width=6)  # Adjusted width
         self.clear_url_button.grid(row=2, column=1, padx=(5, 10), sticky="ew")
 
@@ -135,10 +138,17 @@ class rag_ui:
         self.select_image = PhotoImage(file="select.png")
         self.switch = PhotoImage(file="switch.png")
 
+        # Create a style for the button
+        style = ttk.Style()
+
+        # Modify the TButton style to remove borders and padding
+        style.configure("TButton", borderwidth=0, background="#222222")
         self.open_folder_button = ttk.Button(
             self.folder_frame, image=self.folder_image, command=self.open_folder, padding=0, compound=tk.CENTER)
         self.open_folder_button.pack(side="left", padx=5)
-        self.open_folder_button.config(width=5)  # Set button width
+        self.open_folder_button.config(style="TButton")  # Use a custom style if you need more customization
+        self.open_folder_button["padding"] = 0
+        self.open_folder_button.config(width=6)  # Set button width
 
         self.change_location_button = ttk.Button(
             self.folder_frame, image=self.eye_image, command=self.change_location, padding=0, compound=tk.CENTER)
