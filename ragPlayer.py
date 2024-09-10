@@ -1,7 +1,8 @@
-#pyinstaller --onedir --add-binary "ffmpeg/ffmpeg.exe;ffmpeg" --add-binary "ffmpeg/ffprobe.exe;ffmpeg" ragPlayer.py --name RagPlayer --windowed --icon=MP3_30924.ico   
+#pyinstaller --onedir --add-data "fonts/big_noodle_titling.ttf;BigNoodleTitling" --add-binary "ffmpeg/ffmpeg.exe;ffmpeg" --add-binary "ffmpeg/ffprobe.exe;ffmpeg" ragPlayer.py --name RagPlayer --windowed --icon=MP3_30924.ico   
 
 import tkinter as tk
 #import tkinter.ttk as ttk
+import tkinter.font as font
 from tkinter import messagebox, filedialog
 import ttkbootstrap as ttk
 import os
@@ -40,16 +41,18 @@ class rag_ui:
         self.running = True
         self.downloadSwitch = False
         self.ffmpeg_dir = 'ffmpeg'
+        self.windowsSwitch = False
+        self.keybind_popup = None
+        self.search_term_global = None
+        self.visible_matches = []
+        BigNoodleTitling = os.path.join( 'fonts', 'big_noodle_titling.ttf')
 
         # Build UI
         self.mainwindow = ttk.Window(themename='ragard_dark') if master is None else tk.Toplevel(master)
-        self.mainwindow.overrideredirect(True)
-        self.mainwindow.configure(height=500, width=400)
+        self.mainwindow.configure(height=1200, width=400)
         self.mainwindow.resizable(False, False)
         self.mainwindow.title("ragPlayer")  
         self.mainwindow.protocol("WM_DELETE_WINDOW", self.on_destroy)
-        
-        self.mainwindow.attributes("-topmost", True)    # Ensure the window stays on top
         self.mainwindow.attributes("-toolwindow", False)
         
         def start_move(event):
@@ -72,10 +75,10 @@ class rag_ui:
         self.frame_main = ttk.Frame(self.mainwindow, name="frame_main")
         self.frame_main.configure(height=500, width=400)
         # Create a frame to act as the top bar
-        top_bar = tk.Frame(self.mainwindow, bg="gray", relief="raised", bd=2)
-        top_bar.pack(side="top", fill="x")
+        self.top_bar = tk.Frame(self.mainwindow, bg="gray", relief="raised", bd=2)
+        
 
-        button_bar = tk.Frame(top_bar, bg="gray", relief="raised", bd=0.1)
+        button_bar = tk.Frame(self.top_bar, bg="gray", relief="raised", bd=0.1)
         button_bar.pack(side="right")
 
         # Exit button
@@ -83,8 +86,8 @@ class rag_ui:
         exit_button.pack(side="right")
 
         # Bind the drag functionality to the top bar
-        top_bar.bind("<Button-1>", start_move)
-        top_bar.bind("<B1-Motion>", do_move)
+        self.top_bar.bind("<Button-1>", start_move)
+        self.top_bar.bind("<B1-Motion>", do_move)
 
         label1 = ttk.Label(self.frame_main)
         label1.configure(font="{BigNoodleTitling} 36 {}", text='ragPlayer')
@@ -201,7 +204,7 @@ class rag_ui:
         self.album_art_label.pack(side="top", pady=10)
 
         self.scale1 = ttk.Scale(self.volume_panel)
-        self.scale1.configure(length=200, orient="horizontal", from_= -1, to=100, command=self.set_volume)
+        self.scale1.configure(length=200, orient="horizontal", from_= 0, to=100, command=self.set_volume)
         self.scale1.set(15)
         self.scale1.pack(side="top")
         
@@ -270,9 +273,8 @@ class rag_ui:
                 self.listbox.itemconfig(i, {'fg': 'white'})  # Reset color to white
                 
         def search_listbox(search_term):
-            global visible_matches
-            visible_matches = []
-
+            self.visible_matches = []
+            self.search_term_global = search_term
             # If search bar is empty, reset all colors to white
             if len(search_term) == 0:
                 reset_listbox_colors()
@@ -281,7 +283,7 @@ class rag_ui:
                 for i, item in enumerate(self.playlist):
                     if search_term.lower() in item.lower():
                         self.listbox.itemconfig(i, {'fg': 'red'})  # Highlight matched items
-                        visible_matches.append(i)  # Store the index of visible matches
+                        self.visible_matches.append(i)  # Store the index of visible matches
                     else:
                         self.listbox.itemconfig(i, {'fg': '#1a1d1e'})  # Hide the item (white text on white bg)
 
@@ -291,18 +293,19 @@ class rag_ui:
             
         def cycle_matches(event):
             global current_match_index
-            if visible_matches:
-                # Cycle to the next match
-                current_match_index = (current_match_index + 1) % len(visible_matches)
-                
-                # Scroll the Listbox to the next matching item
-                self.listbox.see(visible_matches[current_match_index])
-                
-                # Highlight the item in the Listbox
-                self.listbox.selection_clear(0, tk.END)
-                self.listbox.selection_set(visible_matches[current_match_index])
-                self.listbox.activate(visible_matches[current_match_index])
-                self.play_song()
+            if self.search_term_global!=None or self.search_term_global!=0:	
+                if self.visible_matches:
+                    # Cycle to the next match
+                    current_match_index = (current_match_index + 1) % len(self.visible_matches)
+                    
+                    # Scroll the Listbox to the next matching item
+                    self.listbox.see(self.visible_matches[current_match_index])
+                    
+                    # Highlight the item in the Listbox
+                    self.listbox.selection_clear(0, tk.END)
+                    self.listbox.selection_set(self.visible_matches[current_match_index])
+                    self.listbox.activate(self.visible_matches[current_match_index])
+                    self.play_song()
                 
         def click_outside_search(event):
             # Check if the click was outside the search bar
@@ -312,13 +315,91 @@ class rag_ui:
                 self.mainwindow.focus()  # Set focus to the root window, effectively deselecting the search bar
             if widget == self.url_entry:
                 self.url_entry.focus_set()  # Temporarily focus on search bar (needed for focus_out to trigger)
-
-        def on_map(event):
-            self.mainwindow.overrideredirect(1)
             
-        # Main widget
-        #self.mainwindow.bind("<Map>", on_map)
+        def toggle_overrideredirect(event=None):
+            self.windowsSwitch = not self.windowsSwitch
+            if self.windowsSwitch:
+                self.mainwindow.attributes("-topmost", True)
+                self.mainwindow.overrideredirect(True)
+                self.top_bar.pack(side="top", fill="x", before=self.frame_main)
+            else:
+                self.mainwindow.overrideredirect(False)
+                self.mainwindow.attributes("-topmost", False)
+                self.top_bar.pack_forget()
+                
+        def toggle_keybind_popup(event=None):
+            def start_move_keybinds(event):
+                self.keybind_popup.x = event.x
+                self.keybind_popup.y = event.y
+
+            def do_move_keybinds(event):
+                deltax = event.x - self.keybind_popup.x
+                deltay = event.y - self.keybind_popup.y
+                self.keybind_popup.geometry(f"+{self.keybind_popup.winfo_x() + deltax}+{self.keybind_popup.winfo_y() + deltay}")
+            def close_keybinds(event=None):
+                self.keybind_popup.destroy()
+                self.keybind_popup = None
+                
+            if self.keybind_popup and self.keybind_popup.winfo_exists():
+                close_keybinds()
+            else:
+                # Create a new popup window to show the keybinds
+                self.keybind_popup = tk.Toplevel(self.mainwindow)
+                self.keybind_popup.title("Controls")
+                self.keybind_popup.geometry("280x310")
+
+                self.keybind_popup.protocol("WM_DELETE_WINDOW", lambda: self.close_popup())
+                self.keybind_popup.overrideredirect(True)
+                self.keybind_popup.top_bar = tk.Frame(self.keybind_popup, bg="gray", relief="raised", bd=2)
+                self.keybind_popup.top_bar.pack(side="top", fill="x")
+                self.keybind_popup.button_bar = tk.Frame(self.keybind_popup.top_bar, bg="gray", relief="raised", bd=0.1)
+                self.keybind_popup.button_bar.pack(side="right")
+                self.keybind_popup.exit_button = tk.Button(self.keybind_popup.button_bar, text="X", bg="gray", fg="white", command=close_keybinds, relief="flat")
+                self.keybind_popup.exit_button.pack(side="right")
+                self.keybind_popup.top_bar.bind("<Button-1>", start_move_keybinds)
+                self.keybind_popup.top_bar.bind("<B1-Motion>", do_move_keybinds)
+
+                # Create a Label to show keybinds
+                keybinds_text = """
+Buttons
+                
+Folder: Opens current playlist location
+Eye: Toggles download panel
+Refresh: Refreshes playlist
+Location: Choose a playlist location
+Shuffle: Toggles shuffle
+
+Rag it: Downloads song from URL
+Clear: Clears URL input
+                
+Keybinds
+                
+Ctrl+A: Toggle borderless window
+Ctrl+C: Toggle controls window
+Up Arrow: Volume Up
+Down Arrow: Volume Down
+Enter: Jump between search results
+                """
+                keybinds_label = tk.Label(self.keybind_popup, text=keybinds_text, justify="center")
+                keybinds_label.pack(side="top", fill="both", expand=True)
+        
+        def set_volume_kb(val):
+            volume = float(val) / 200
+            pygame.mixer.music.set_volume(volume)
+        
+        def up_volume(event=None):
+            set_volume_kb(self.scale1.get()+2.5)
+            self.scale1.set(self.scale1.get()+2.5)
+                
+        def down_volume(event=None):
+            set_volume_kb(self.scale1.get()-2.5)
+            self.scale1.set(self.scale1.get()-2.5)
+        #Binds
+        self.mainwindow.bind("<Up>", up_volume)
+        self.mainwindow.bind("<Down>", down_volume)
         self.mainwindow.bind("<Button-1>", click_outside_search)
+        self.mainwindow.bind_all("<Control-a>", toggle_overrideredirect)
+        self.mainwindow.bind_all("<Control-c>", toggle_keybind_popup)
         self.search_bar.bind('<Return>', cycle_matches)
         self.shuffle_on = True
         self.search_var.trace("w", lambda name, index, mode: search_listbox(self.search_var.get()))
@@ -723,14 +804,13 @@ class rag_ui:
             self.listbox.activate(self.current_index)
             self.play_song()
 
+    def set_volume(self, val):
+            volume = float(val) / 200
+            pygame.mixer.music.set_volume(volume)
 
     def play_selected_song(self, event):
         self.play_song()
         self.pause_unpause_button.configure(image=self.pause_image)
-            
-    def set_volume(self, val):
-        volume = float(val) / 200
-        pygame.mixer.music.set_volume(volume)
         
     def close_window(self):
         self.running = False  # Update the flag when the window is closed
