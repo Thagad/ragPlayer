@@ -1,4 +1,4 @@
-#pyinstaller --onedir --add-data "fonts/big_noodle_titling.ttf;BigNoodleTitling" --add-binary "ffmpeg/ffmpeg.exe;ffmpeg" --add-binary "ffmpeg/ffprobe.exe;ffmpeg" ragPlayer.py --name RagPlayer --windowed --icon=MP3_30924.ico   
+#pyinstaller --onedir --add-data "fonts/big_noodle_titling.ttf;BigNoodleTitling" --add-binary "ffmpeg/ffmpeg.exe;ffmpeg" --add-binary "ffmpeg/ffprobe.exe;ffmpeg" ragPlayer.py --name RagPlayer --windowed --icon=MP3_30924.ico --add-data "fonts/PlusJakartaSans-Bold.ttf;PlusJakartaSans-Bold"   
 
 import tkinter as tk
 #import tkinter.ttk as ttk
@@ -48,12 +48,14 @@ class rag_ui:
         BigNoodleTitling = os.path.join( 'fonts', 'big_noodle_titling.ttf')
 
         # Build UI
-        self.mainwindow = ttk.Window(themename='ragard_dark') if master is None else tk.Toplevel(master)
+        self.mainwindow = ttk.Window(themename='ragard_dark2') if master is None else tk.Toplevel(master)
         self.mainwindow.configure(height=1200, width=400)
         self.mainwindow.resizable(False, False)
         self.mainwindow.title("ragPlayer")  
         self.mainwindow.protocol("WM_DELETE_WINDOW", self.on_destroy)
         self.mainwindow.attributes("-toolwindow", False)
+        self.mainwindow.minsize(width=545, height=800)
+        self.mainwindow.maxsize(width=545, height=1200)
         
         def start_move(event):
             self.mainwindow.x = event.x
@@ -96,7 +98,7 @@ class rag_ui:
         labelStyle.configure("Label.TLabel", background="#fd2600", bordercolor="#fd2600")
         
         labelStyle2 = ttk.Style()
-        labelStyle2.configure("Label2.TLabel", background="#222222", bordercolor="#222222")
+        labelStyle2.configure("Label2.TLabel", background="#121212", bordercolor="#121212")
         
         panel = ttk.Frame(self.mainwindow, relief="raised", style="Panel.TFrame")
         panel.pack(fill="x", side="top")  # 'fill="x"' makes the panel span the entire width
@@ -105,35 +107,43 @@ class rag_ui:
         label1 = ttk.Label(panel, font="{BigNoodleTitling} 36 {}", text='ragPlayer', style="Label.TLabel")
         label1.pack(side="top", padx=10)  # Add padding if needed
 
+
         self.download_frame = tk.LabelFrame(
             self.frame_main, name="download_frame")
         self.download_frame.configure(height=200, width=200)
 
         self.url_label = ttk.Label(self.download_frame, name="url_label")
         self.url_label.configure(
-            font="{BigNoodleTitling} 14 {}",
+            font="{Plus Jakarta Sans} 10 {}",
             text='Song Url:')
         self.url_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
 
         self.url_entry = ttk.Entry(self.download_frame, name="url_entry")
-        self.url_entry.configure(font="{BigNoodleTitling} 12 {}")
+        self.url_entry.configure(font="{Plus Jakarta Sans} 8 {}")
         self.url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
 
         self.download_status_label = ttk.Label(self.download_frame, name="download_status_label")
-        self.download_status_label.configure(text="", foreground="red", font="{BigNoodleTitling} 12 {}")
+        self.download_status_label.configure(text="", foreground="red", font="{Plus Jakarta Sans} 8 {}")
         self.download_status_label.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="we")
 
         styleNoImg = ttk.Style()
         styleNoImg.configure("Imageless.TButton", background="#fa332e")
         
+        self.import_button = ttk.Button(self.download_frame, text="𝗜𝗺𝗽𝗼𝗿𝘁 .𝗿𝗮𝗴𝗽", command=self.import_playlist, width=15)
+        self.import_button.grid(row=3, column=0, padx=(10, 10), sticky="ew")
+
+        # Create the export button
+        self.export_button = ttk.Button(self.download_frame, text="𝗘𝘅𝗽𝗼𝗿𝘁 .𝗿𝗮𝗴𝗽", command=self.export_playlist, width=15)
+        self.export_button.grid(row=3, column=1, padx=(10, 10), sticky="ew")
+        
         self.button4 = ttk.Button(self.download_frame, name="button4", style="Imageless.TButton")
         self.button4.configure(text='𝗥𝗮𝗴 𝗶𝘁', command=self.download_song, width=6)  # Adjusted width
-        self.button4.grid(row=2, column=0, padx=(10, 5), sticky="ew")
+        self.button4.grid(row=2, column=1, padx=(10, 10), sticky="ew")
 
         # Add the new button next to the "Rag it" button
         self.clear_url_button = ttk.Button(self.download_frame, name="clear_url_button", style="Imageless.TButton")
         self.clear_url_button.configure(text='𝗖𝗹𝗲𝗮𝗿', command=self.clear_url, width=6)  # Adjusted width
-        self.clear_url_button.grid(row=2, column=1, padx=(5, 10), sticky="ew")
+        self.clear_url_button.grid(row=2, column=0, padx=(10, 10), sticky="ew")
 
         self.download_frame.pack(side="top", pady=10)
 
@@ -154,7 +164,7 @@ class rag_ui:
         style = ttk.Style()
 
         # Modify the TButton style to remove borders and padding
-        style.configure("TButton", borderwidth=0, background="#222222")
+        style.configure("TButton", borderwidth=0, background="#121212")
         self.open_folder_button = ttk.Button(
             self.folder_frame, image=self.folder_image, command=self.open_folder, padding=0, compound=tk.CENTER)
         self.open_folder_button.pack(side="left", padx=5)
@@ -186,7 +196,7 @@ class rag_ui:
         self.playlist_label = ttk.Label(
             self.playlist_frame, name="playlist_label")
         self.playlist_label.configure(
-            font="{BigNoodleTitling} 20 {italic underline}",
+            font="{Plus Jakarta Sans} 16 {}",
             text=os.path.basename(self.song_directory))  # Set label text to folder name
         self.playlist_label.place(relx=0.0, rely=0.0, anchor="center")
         self.playlist_label.pack(fill="none", expand=True)
@@ -208,11 +218,11 @@ class rag_ui:
         
         self.search_var = tk.StringVar()
         self.search_bar = tk.Entry(self.frame_main, textvariable=self.search_var, width=50)
-        self.search_bar.configure(font="{BigNoodleTitling} 14 {}", width=70)
+        self.search_bar.configure(font="{Plus Jakarta Sans} 10 {}", width=60)
         self.search_bar.pack()
 
         self.listbox = tk.Listbox(self.frame_main, name="listbox")
-        self.listbox.configure(font="{BigNoodleTitling} 14 {}", width=70)  # Adjust width as needed
+        self.listbox.configure(font="{Plus Jakarta Sans} 10 {}", width=37)  # Adjust width as needed
         self.listbox.pack(side="top", fill="both", expand=True)
         self.populate_playlist()  # Populate playlist initially
         self.listbox.bind("<<ListboxSelect>>", self.play_selected_song)  # Bind selection event to play_selected_song
@@ -237,11 +247,11 @@ class rag_ui:
 
 
         self.container_frame = ttk.Frame(self.volume_panel)
-        self.container_frame.configure(height=20, width=100)
+        self.container_frame.configure(height=25, width=100)
         self.container_frame.pack(fill="both", expand=True, side="bottom", pady=10)
 
         self.song_label = ttk.Label(self.container_frame, name="song_label", style="Label2.TLabel")
-        self.song_label.configure(font="{BigNoodleTitling} 16 {}", text='Now playing: ')
+        self.song_label.configure(font="{Plus Jakarta Sans} 11 {}", text='Now playing: ')
         self.song_label.place(relx=0.5, rely=0.5, anchor="center")
         self.mainwindow.bind("<space>", self.toggle_pause_unpause)
         
@@ -278,7 +288,7 @@ class rag_ui:
         self.progressbar_label = ttk.Label(
             self.volume_panel, name="progressbar_label")
         self.progressbar_label.configure(
-            font="{BigNoodleTitling} 14 {}",
+            font="{Plus Jakarta Sans} 10 {}",
             text='00:00 / 00:00')
         self.progressbar_label.pack(side="top")
 
@@ -307,7 +317,7 @@ class rag_ui:
                         self.listbox.itemconfig(i, {'fg': 'red'})  # Highlight matched items
                         self.visible_matches.append(i)  # Store the index of visible matches
                     else:
-                        self.listbox.itemconfig(i, {'fg': '#1a1d1e'})  # Hide the item (white text on white bg)
+                        self.listbox.itemconfig(i, {'fg': '#3c3c3c'})  
 
             # Reset the cycling index if search is updated
             global current_match_index
@@ -416,9 +426,21 @@ Enter: Jump between search results
         def down_volume(event=None):
             set_volume_kb(self.scale1.get()-2.5)
             self.scale1.set(self.scale1.get()-2.5)
+            
+        """def up_time(event=None):
+            pygame.mixer.music.pause()
+            pygame.mixer.music.set_pos(pygame.mixer.music.get_pos()+1)
+            pygame.mixer.music.unpause()
+        def down_time(event=None):
+            pygame.mixer.music.pause()
+            pygame.mixer.music.set_pos(pygame.mixer.music.get_pos()-1)
+            pygame.mixer.music.unpause()"""
+            
         #Binds
         self.mainwindow.bind("<Up>", up_volume)
         self.mainwindow.bind("<Down>", down_volume)
+        #self.mainwindow.bind("<Right>", up_time)
+        #self.mainwindow.bind("<Left>", down_time)
         self.mainwindow.bind("<Button-1>", click_outside_search)
         self.mainwindow.bind_all("<Control-a>", toggle_overrideredirect)
         self.mainwindow.bind_all("<Control-c>", toggle_keybind_popup)
@@ -484,6 +506,8 @@ Enter: Jump between search results
             self.url_label.grid_remove()
             self.url_entry.grid_remove()
             self.download_status_label.grid_remove()
+            self.import_button.grid_remove()
+            self.export_button.grid_remove()
             self.button4.grid_remove()
             self.clear_url_button.grid_remove()
         else:
@@ -492,8 +516,10 @@ Enter: Jump between search results
             self.url_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
             self.url_entry.grid(row=0, column=1, padx=5, pady=5, sticky="we")
             self.download_status_label.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="we")
-            self.button4.grid(row=2, column=0, padx=(10, 5), sticky="ew")
-            self.clear_url_button.grid(row=2, column=1, padx=(5, 10), sticky="ew")
+            self.import_button.grid(row=3, column=1, padx=(5, 10), sticky="ew")
+            self.export_button.grid(row=3, column=0, padx=(10, 5), sticky="ew")
+            self.button4.grid(row=2, column=1, padx=(5, 10), sticky="ew")
+            self.clear_url_button.grid(row=2, column=0, padx=(10, 5), sticky="ew")
     
     def reload_playlist(self):
         self.populate_playlist()
@@ -594,6 +620,10 @@ Enter: Jump between search results
             song_default_image_path = os.path.join(self.song_directory, "default_image.png")
             if not os.path.exists(song_default_image_path):
                 shutil.copy(default_image_path, song_default_image_path)
+                
+            song_default_thumb_path = os.path.join(self.song_directory, "thumb.png")
+            if not os.path.exists(song_default_thumb_path):
+                shutil.copy(default_image_path, song_default_thumb_path)
             
             self.update_playlist()
             self.playlist_label.config(text=os.path.basename(self.song_directory))  # Update playlist label
@@ -605,9 +635,65 @@ Enter: Jump between search results
                 self.playlist_image.config(image=self.playlist_artwork)
 
 
+    def save_to_playlist(self, link):
+        ragp_file = os.path.join(self.song_directory, os.path.basename(self.song_directory) + ".ragp")
+        
+        with open(ragp_file, 'a') as file:
+            file.write(link + "\n")
+    
+    def import_playlist(self):
+        # Ask the user to select the .ragp file
+        file_path = filedialog.askopenfilename(filetypes=[("RAGP Files", "*.ragp")])
+
+        if file_path:
+            try:
+                # Read all links from the .ragp file
+                with open(file_path, 'r') as file:
+                    links = file.readlines()
+
+                # Remove any extra whitespace or newlines
+                links = [link.strip() for link in links]
+
+                # Download all files from the playlist
+                for link in links:
+                    self.download_song_from_url(link)
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to import playlist: {str(e)}")
+                
+    def export_playlist(self):
+        # Get the path to the .ragp file
+        ragp_file = os.path.join(self.song_directory, os.path.basename(self.song_directory) + ".ragp")
+        print(ragp_file)
+        if not os.path.exists(ragp_file):
+            messagebox.showerror("Error", "No playlist file found to export.")
+            return
+
+        # Ask the user where they want to save the file
+        destination_path = filedialog.asksaveasfilename(defaultextension=".ragp", filetypes=[("RAGP Files", "*.ragp")])
+
+        if destination_path:
+            try:
+                # Copy the .ragp file to the selected destination
+                with open(ragp_file, 'r') as src, open(destination_path, 'w') as dst:
+                    dst.write(src.read())
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to export playlist: {str(e)}")
+                
+    def download_song_from_url(self, link):
+        source = self.detect_source(link)
+        self.save_to_playlist(link)
+        if source in ["YouTube", "Spotify", "SoundCloud"]:
+            self.downloading = True  # Set downloading flag
+            # Start downloading in a separate thread
+            download_thread = threading.Thread(target=self.start_download, args=(link, source))
+            download_thread.start()
+        else:
+            messagebox.showwarning("Warning", "𝗨𝗻𝘀𝘂𝗽𝗽𝗼𝗿𝘁𝗲𝗱 𝗨𝗥𝗟! 𝗣𝗿𝗼𝗴𝗿𝗮𝗺 𝗶𝘀 𝗺𝗮𝗱𝗲 𝘁𝗼 𝘄𝗼𝗿𝗸 𝘄𝗶𝘁𝗵 𝘆𝗼𝘂𝘁𝘂𝗯𝗲, 𝘀𝗽𝗼𝘁𝗶𝗳𝘆 𝗮𝗻𝗱 𝘀𝗼𝘂𝗻𝗱𝗰𝗹𝗼𝘂𝗱 𝗹𝗶𝗻𝗸𝘀.")
+        
     def download_song(self):
         url = self.url_entry.get()
         source = self.detect_source(url)
+        self.save_to_playlist(url)
         if source in ["YouTube", "Spotify", "SoundCloud"]:
             self.downloading = True  # Set downloading flag
             # Start downloading in a separate thread
@@ -669,7 +755,7 @@ Enter: Jump between search results
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([song_url])
 
-
+            self.reload_playlist()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to download songs: {str(e)}")
         finally:
@@ -730,7 +816,7 @@ Enter: Jump between search results
                 'preferredquality': '320',
             }],
             'ffmpeg_location': self.ffmpeg_dir,
-            'outtmpl': f"%(title)s.%(ext)s",
+            'outtmpl': os.path.join(self.song_directory, '%(title)s.%(ext)s'),
             'default_search': 'ytsearch',
             'writethumbnail': True,
             'ignoreerrors' : True
